@@ -18,7 +18,8 @@ Prove a dependable device adapter can:
 - Companion apps (Central, Connect, UNIFY) configure gain, monitoring, and on-board DSP
 - Settings persist on the microphone after apps close
 - USB identity commonly reported as vendor `0x19f7`, product `0x004a` (HID)
-- RØDE does not publish a supported third-party control API
+- RØDE does not publish a supported third-party control API for PodMic USB
+- RØDECaster Duo / Pro II **do** publish an official MIDI surface (mute / listen / pads / record) — see [midi-tier-b.md](./midi-tier-b.md). That path does **not** cover PodMic USB gain/DSP.
 
 ## Non-goals
 

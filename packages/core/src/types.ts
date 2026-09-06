@@ -58,6 +58,8 @@ export interface Device {
   connection: string;
   status: DeviceStatus;
   endpoints: Endpoint[];
+  /** Adapter-specific facts (control tier, surface kind, support limits). */
+  metadata?: Record<string, unknown>;
 }
 
 export interface Endpoint {

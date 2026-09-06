@@ -462,6 +462,12 @@ export class CapabilityCore {
         return !(resolved.state.value === true);
       case "SetProcessing":
         return command.value;
+      case "TriggerPad":
+        return true;
+      case "StartRecording":
+        return true;
+      case "StopRecording":
+        return false;
       default:
         return undefined;
     }
@@ -518,6 +524,11 @@ export class CapabilityCore {
       case "SetLevel":
       case "AdjustLevel":
         return base.capability.type === "Monitoring" ? "Monitoring" : "Level";
+      case "TriggerPad":
+        return "PadTrigger";
+      case "StartRecording":
+      case "StopRecording":
+        return "Recording";
       default:
         return base.capability.type;
     }
@@ -715,6 +726,43 @@ export function suggestCreatorBindings(devices: Device[]): SuggestedBinding[] {
           bank: "mic",
           role: "mute",
           binding: createBinding(`${endpoint.id}:mute`, "MUTE", "Mute", {
+            deviceId: device.id,
+            endpointId: endpoint.id,
+          }),
+        });
+      } else if (mute && endpoint.kind === "channel") {
+        suggestions.push({
+          bank: "production",
+          role: "channel-mute",
+          binding: createBinding(
+            `${endpoint.id}:mute`,
+            `${shortLabel(endpoint)} MUTE`,
+            "Mute",
+            location,
+          ),
+        });
+      }
+
+      const listen = endpoint.capabilities.find((c) => c.type === "Listen");
+      if (listen && endpoint.kind === "channel") {
+        suggestions.push({
+          bank: "production",
+          role: "channel-listen",
+          binding: createBinding(
+            `${endpoint.id}:listen`,
+            `${shortLabel(endpoint)} LISTEN`,
+            "Listen",
+            location,
+          ),
+        });
+      }
+
+      const recording = endpoint.capabilities.find((c) => c.type === "Recording");
+      if (recording) {
+        suggestions.push({
+          bank: "production",
+          role: "record",
+          binding: createBinding(`${endpoint.id}:record`, "REC", "Recording", {
             deviceId: device.id,
             endpointId: endpoint.id,
           }),

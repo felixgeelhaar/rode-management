@@ -7,13 +7,14 @@ Local, capability-driven control layer for RØDE audio ecosystems — initially 
 
 ## Current status
 
-**Draft 0.2 / Phases 1–3 on simulators**
+**Draft 0.3 / Phases 1–3 on simulators + Tier B official MIDI (mocked transport)**
 
 | Assumption | Evidence in repo |
 |------------|------------------|
 | Reliable interactive control is possible | Pending real PodMic USB protocol work ([Phase 0](docs/phase-0-protocol.md)) |
 | Stream Deck+ can feel like a console | Mic Gain dial (+ mute press) and Channel Level dial |
 | One capability model spans USB mic and mixer channel ownership | Covered by core + RØDECaster Duo sim tests |
+| Official MIDI is a legitimate Tier B path | [MIDI Tier B](docs/midi-tier-b.md) — mute / listen / pads / record |
 
 ## Quick start
 
@@ -22,6 +23,7 @@ npm install
 npm test
 npm run demo:vertical-slice
 npm run demo:mix-bank
+npm run demo:midi
 npm run build
 ```
 
@@ -40,6 +42,13 @@ MIC gain owned by mixer Input 1 (PodMic source)
 dial press on MIC → mute retarget
 ```
 
+### RØDECaster official MIDI (mocked, Tier B)
+
+```text
+mute / listen / SMART pads / record over documented MIDI CCs
+levels + gain intentionally unsupported
+```
+
 ### Stream Deck plugin
 
 Built artifact:
@@ -52,6 +61,9 @@ RODE_CONTROL_ADAPTER=sim
 
 # RØDECaster Duo mix simulator
 RODE_CONTROL_ADAPTER=rodecaster
+
+# Official MIDI Tier B (mock transport until a real port is wired)
+RODE_CONTROL_ADAPTER=rodecaster-midi
 ```
 
 ## Workspace
@@ -59,9 +71,9 @@ RODE_CONTROL_ADAPTER=rodecaster
 ```text
 packages/core                      Capability core + domain model
 packages/adapters/podmic-usb       PodMic USB sim + protocol stub
-packages/adapters/rodecaster-duo   RØDECaster Duo sim (Phase 3)
+packages/adapters/rodecaster-duo   RØDECaster Duo sim + official MIDI adapter
 packages/streamdeck-plugin         Stream Deck+ Mic Gain + Channel Level
-docs/                              Product intent, architecture, Phase 0 notes
+docs/                              Product intent, architecture, Phase 0, MIDI Tier B
 ```
 
 ## Product model (short)

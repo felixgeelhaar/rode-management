@@ -15,7 +15,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "demo:mix-bank": "tsx src/demo-mix-bank.ts"
+    "demo:mix-bank": "tsx src/demo-mix-bank.ts",
+    "demo:midi": "tsx src/demo-midi.ts"
   },
   "dependencies": {
     "@rode-control/core": "0.1.0"
