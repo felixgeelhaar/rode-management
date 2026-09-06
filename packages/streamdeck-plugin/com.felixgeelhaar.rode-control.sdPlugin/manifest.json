@@ -2,12 +2,12 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "RØDE Control",
-  "Version": "0.1.0.0",
+  "Version": "0.2.0.0",
   "Author": "Felix Geelhaar",
   "Category": "RØDE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Phase 1: Mic Gain vertical slice.",
+  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Mic gain/mute plus mix levels (simulator-backed until protocol validation).",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -32,19 +32,41 @@
       "UUID": "com.felixgeelhaar.rode-control.mic-gain",
       "Name": "Mic Gain",
       "Icon": "imgs/actions/mic-gain/icon",
-      "Tooltip": "Adjust My Mic gain on connected RØDE hardware",
+      "Tooltip": "Adjust My Mic gain; press to mute",
       "Controllers": ["Encoder"],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
           "Rotate": "Adjust gain",
-          "Push": "Reserved for mute",
+          "Push": "Toggle mute",
           "Touch": "Show mic controls (future)"
         }
       },
       "States": [
         {
           "Image": "imgs/actions/mic-gain/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.channel-level",
+      "Name": "Channel Level",
+      "Icon": "imgs/actions/channel-level/icon",
+      "Tooltip": "Adjust a mix channel level (Game / Chat / Music)",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust level",
+          "Push": "Reserved",
+          "Touch": "Show channel controls (future)"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/channel-level/key",
           "TitleAlignment": "middle",
           "FontSize": 12
         }

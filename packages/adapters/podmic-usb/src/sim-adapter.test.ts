@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   CapabilityCore,
+  createBinding,
   createMicGainBinding,
 } from "@rode-control/core";
-import { PodMicUsbSimAdapter } from "../src/sim-adapter.js";
+import { PodMicUsbSimAdapter } from "./sim-adapter.js";
 import {
   PODMIC_USB_PROTOCOL_CHECKLIST,
   PODMIC_USB_USB_IDS,
-} from "../src/protocol-research.js";
+} from "./protocol-research.js";
 
 describe("PodMicUsbSimAdapter", () => {
   it("satisfies Phase 1 vertical-slice behaviors", async () => {
@@ -21,7 +22,11 @@ describe("PodMicUsbSimAdapter", () => {
     expect(core.resolveBinding("my-mic-gain")?.capability.type).toBe("Gain");
     expect(core.getControlSurface("my-mic-gain").valueText).toBe("20 dB");
 
-    await core.execute({ type: "AdjustGain", bindingId: "my-mic-gain", delta: 3 });
+    await core.execute({
+      type: "AdjustGain",
+      bindingId: "my-mic-gain",
+      delta: 3,
+    });
     expect(core.getControlSurface("my-mic-gain").valueText).toBe("23 dB");
 
     adapter.simulateExternalGainChange(10);
@@ -39,6 +44,65 @@ describe("PodMicUsbSimAdapter", () => {
     });
     expect(result.ok).toBe(true);
     expect(core.getControlSurface("my-mic-gain").valueText).toBe("15 dB");
+  });
+
+  it("supports Phase 2 monitor / mute / processing depth", async () => {
+    const adapter = new PodMicUsbSimAdapter({
+      initialGainDb: 22,
+      initialMonitorPercent: 40,
+    });
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+
+    core.upsertBinding(createMicGainBinding());
+    core.upsertBinding(
+      createBinding("my-mic-monitor", "MONITOR", "Monitoring", {
+        sourceHint: "PodMic",
+      }),
+    );
+    core.upsertBinding(
+      createBinding("my-mic-hpf", "HPF", "HighPassFilter", {
+        sourceHint: "PodMic",
+      }),
+    );
+    core.upsertBinding(
+      createBinding("my-mic-comp", "COMP", "Compression", {
+        sourceHint: "PodMic",
+      }),
+    );
+
+    await core.execute({
+      type: "AdjustLevel",
+      bindingId: "my-mic-monitor",
+      delta: 5,
+    });
+    expect(adapter.getMonitorPercent()).toBe(45);
+    expect(core.getControlSurface("my-mic-monitor").valueText).toBe("45 %");
+
+    const mute = await core.execute({
+      type: "ToggleMute",
+      bindingId: "my-mic-gain",
+    });
+    expect(mute.ok).toBe(true);
+    expect(mute.resolved?.capability.type).toBe("Mute");
+    expect(adapter.isMuted()).toBe(true);
+
+    await core.execute({
+      type: "SetProcessing",
+      bindingId: "my-mic-hpf",
+      capabilityType: "HighPassFilter",
+      value: true,
+    });
+    expect(adapter.isHighPassEnabled()).toBe(true);
+
+    await core.execute({
+      type: "SetProcessing",
+      bindingId: "my-mic-comp",
+      capabilityType: "Compression",
+      value: true,
+    });
+    expect(adapter.isCompressorEnabled()).toBe(true);
   });
 
   it("documents unvalidated protocol checklist", () => {

@@ -16,6 +16,8 @@ const targets = [
   "imgs/plugin-icon.png",
   "imgs/actions/mic-gain/icon.png",
   "imgs/actions/mic-gain/key.png",
+  "imgs/actions/channel-level/icon.png",
+  "imgs/actions/channel-level/key.png",
 ];
 
 for (const relative of targets) {

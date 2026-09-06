@@ -7,13 +7,13 @@ Local, capability-driven control layer for RØDE audio ecosystems — initially 
 
 ## Current status
 
-**Draft 0.1 / Phase 1 vertical slice on a simulator**
+**Draft 0.2 / Phases 1–3 on simulators**
 
 | Assumption | Evidence in repo |
 |------------|------------------|
 | Reliable interactive control is possible | Pending real PodMic USB protocol work ([Phase 0](docs/phase-0-protocol.md)) |
-| Stream Deck+ can feel like a console | Mic Gain dial action scaffolded |
-| One capability model spans USB mic and mixer channel ownership | Covered by core tests |
+| Stream Deck+ can feel like a console | Mic Gain dial (+ mute press) and Channel Level dial |
+| One capability model spans USB mic and mixer channel ownership | Covered by core + RØDECaster Duo sim tests |
 
 ## Quick start
 
@@ -21,13 +21,23 @@ Local, capability-driven control layer for RØDE audio ecosystems — initially 
 npm install
 npm test
 npm run demo:vertical-slice
+npm run demo:mix-bank
 npm run build
 ```
 
-### Vertical slice demo (no hardware)
+### PodMic vertical slice (no hardware)
 
 ```text
 discover → show gain → dial adjust → external change → disconnect OFFLINE → reconnect
++ monitor / mute / HPF / compressor (Phase 2)
+```
+
+### RØDECaster mix bank (no hardware)
+
+```text
+MIC / GAME / CHAT / MUSIC levels
+MIC gain owned by mixer Input 1 (PodMic source)
+dial press on MIC → mute retarget
 ```
 
 ### Stream Deck plugin
@@ -36,15 +46,22 @@ Built artifact:
 
 `packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin`
 
-Install via the Elgato Stream Deck app / CLI on a machine with Stream Deck+. Default backend is the PodMic USB **simulator** (`RODE_CONTROL_ADAPTER=sim`).
+```bash
+# PodMic USB simulator (default)
+RODE_CONTROL_ADAPTER=sim
+
+# RØDECaster Duo mix simulator
+RODE_CONTROL_ADAPTER=rodecaster
+```
 
 ## Workspace
 
 ```text
-packages/core                 Capability core + domain model
-packages/adapters/podmic-usb  Sim adapter + protocol research stub
-packages/streamdeck-plugin    Stream Deck+ Mic Gain dial
-docs/                         Product intent, architecture, Phase 0 notes
+packages/core                      Capability core + domain model
+packages/adapters/podmic-usb       PodMic USB sim + protocol stub
+packages/adapters/rodecaster-duo   RØDECaster Duo sim (Phase 3)
+packages/streamdeck-plugin         Stream Deck+ Mic Gain + Channel Level
+docs/                              Product intent, architecture, Phase 0 notes
 ```
 
 ## Product model (short)

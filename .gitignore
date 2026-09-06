@@ -5,5 +5,5 @@ dist/
 *.log
 .turbo/
 coverage/
-com.*.sdPlugin/bin/
+**/com.*.sdPlugin/bin/
 *.sdPlugin.zip

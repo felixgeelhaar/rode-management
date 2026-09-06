@@ -18,7 +18,7 @@ type MicGainSettings = {
  * Stream Deck+ dial for logical "My Mic" / Gain.
  *
  * Rotate → AdjustGain
- * Press  → reserved (mute once available)
+ * Press  → ToggleMute (same-endpoint retarget)
  * Display → live authoritative state / OFFLINE
  */
 @action({ UUID: "com.felixgeelhaar.rode-control.mic-gain" })
@@ -35,7 +35,10 @@ export class MicGainDialAction extends SingletonAction<MicGainSettings> {
     const unsubscribe = core.subscribe((event) => {
       if (
         (event.type === "state-changed" &&
-          event.resolved.binding.id === bindingId) ||
+          (event.resolved.binding.id === bindingId ||
+            (event.resolved.capability.type === "Mute" &&
+              event.resolved.endpoint.id ===
+                core.resolveBinding(bindingId)?.endpoint.id))) ||
         (event.type === "binding-offline" && event.bindingId === bindingId) ||
         (event.type === "binding-online" && event.bindingId === bindingId)
       ) {
@@ -81,7 +84,22 @@ export class MicGainDialAction extends SingletonAction<MicGainSettings> {
   }
 
   override async onDialDown(ev: DialDownEvent<MicGainSettings>): Promise<void> {
+    const core = await getCapabilityCore();
     const bindingId = ev.payload.settings.bindingId ?? MIC_GAIN_BINDING_ID;
+
+    const result = await core.execute({
+      type: "ToggleMute",
+      bindingId,
+    });
+
+    if (!result.ok && ev.action.isDial()) {
+      await ev.action.setFeedback({
+        title: "MIC",
+        value: result.error ?? "ERR",
+      });
+      return;
+    }
+
     await this.render(ev.action, bindingId);
   }
 
@@ -92,11 +110,26 @@ export class MicGainDialAction extends SingletonAction<MicGainSettings> {
     if (!actionRef.isDial()) {
       return;
     }
+
     const core = await getCapabilityCore();
     const surface = core.getControlSurface(bindingId);
+    const muted = this.isMuted(core, bindingId);
+
     await actionRef.setFeedback({
       title: surface.label,
-      value: surface.valueText,
+      value:
+        surface.availability === "offline"
+          ? "OFFLINE"
+          : muted
+            ? `MUTE ${surface.valueText}`
+            : surface.valueText,
     });
+  }
+
+  private isMuted(
+    core: Awaited<ReturnType<typeof getCapabilityCore>>,
+    bindingId: string,
+  ): boolean {
+    return core.getSiblingState(bindingId, "Mute")?.value === true;
   }
 }

@@ -22,9 +22,10 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 
 | Package | Role |
 |---------|------|
-| `@rode-control/core` | Domain types, `DeviceAdapter` contract, `CapabilityCore` (graph, bindings, commands, state sync) |
-| `@rode-control/adapter-podmic-usb` | PodMic USB sim adapter + protocol research stub |
-| `@rode-control/streamdeck-plugin` | Stream Deck+ Mic Gain dial action |
+| `@rode-control/core` | Domain types, `DeviceAdapter` contract, `CapabilityCore`, binding helpers, layout suggestions |
+| `@rode-control/adapter-podmic-usb` | PodMic USB sim adapter (gain / monitor / mute / HPF / compressor) + protocol research stub |
+| `@rode-control/adapter-rodecaster-duo` | RØDECaster Duo sim adapter (mix channels + headphones) |
+| `@rode-control/streamdeck-plugin` | Stream Deck+ Mic Gain (+ mute press) and Channel Level dials |
 
 ## Phase alignment
 
@@ -32,8 +33,8 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 |-------|----------------|
 | 0 Protocol feasibility (real PodMic USB) | Stub + checklist only — requires hardware |
 | 1 Vertical slice (dial ↔ gain, offline/reconnect) | Implemented against **simulator** |
-| 2 Capability depth | Monitor capability declared, not wired |
-| 3 RØDECaster validation | Ownership topology covered by core tests with fake mixer adapter |
+| 2 Capability depth | Monitor, mute, HPF, compressor wired on PodMic sim; dial press → mute |
+| 3 RØDECaster validation | Duo simulator + mix bank + §43 ownership tests |
 | 4+ Creator product / ecosystem | Not started |
 
 ## Adapter contract
@@ -42,7 +43,11 @@ Adapters own discovery, identity, connection, protocol, capability negotiation, 
 
 They must **not** own Stream Deck UI concepts.
 
-Until a supported protocol path is validated, `PodMicUsbSimAdapter` stands in for interactive development. Real transport candidates are listed in `protocol-research.ts` (HID, control transfers, IPC, OS audio). Screen automation of RØDE Central is an explicit non-goal.
+Until a supported protocol path is validated, simulators stand in for interactive development. Real transport candidates are listed in `protocol-research.ts` (HID, control transfers, IPC, OS audio). Screen automation of RØDE Central is an explicit non-goal.
+
+## Same-endpoint command retargeting
+
+A Mic Gain binding can receive `ToggleMute` / `SetProcessing`. The core retargets those commands to sibling capabilities on the **same endpoint**, so Stream Deck dial press can mute without a separate mute binding.
 
 ## State authority
 
@@ -52,18 +57,19 @@ User intent → Adapter command → Device → Observed state → Core → Strea
 
 Optimistic UI is allowed for feel, but displays reconcile to authoritative adapter/device state. Offline bindings remain configured and show `OFFLINE`.
 
-## Stream Deck+ Mic Gain action
+## Stream Deck+ actions
 
-- **Rotate** → `AdjustGain`
-- **Press** → reserved for mute when available
-- **Feedback** → live value or `OFFLINE`
-- Layout: stock `$B1`
+| Action | Rotate | Press | Feedback |
+|--------|--------|-------|----------|
+| Mic Gain | `AdjustGain` | `ToggleMute` | live value / `MUTE …` / `OFFLINE` |
+| Channel Level | `AdjustLevel` | reserved | live level / `OFFLINE` |
 
-Default runtime uses the simulator (`RODE_CONTROL_ADAPTER=sim`).
+Default runtime uses the PodMic simulator (`RODE_CONTROL_ADAPTER=sim`).  
+Set `RODE_CONTROL_ADAPTER=rodecaster` for the Duo mix-bank simulator.
 
 ## Next hardware steps
 
 1. Capture how RØDE Central talks to PodMic USB while changing gain/monitor/DSP.
 2. Implement a real `DeviceAdapter` behind the same interface.
-3. Re-run the Phase 1 checklist on physical PodMic USB + Stream Deck+.
-4. Add RØDECaster Duo adapter and prove §43 ownership equivalence on hardware.
+3. Re-run the Phase 1–2 checklist on physical PodMic USB + Stream Deck+.
+4. Validate RØDECaster Duo channel control on hardware and prove §43 ownership equivalence.

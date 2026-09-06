@@ -9,16 +9,21 @@ export interface PodMicUsbSimOptions {
   deviceId?: string;
   serial?: string;
   initialGainDb?: number;
+  initialMonitorPercent?: number;
   /** Simulated gain range — provisional until protocol validation. */
   minGainDb?: number;
   maxGainDb?: number;
   stepDb?: number;
 }
 
+type NumericCapabilityId = "gain" | "monitor-level";
+type BooleanCapabilityId = "mute" | "high-pass" | "compressor";
+type CapabilityId = NumericCapabilityId | BooleanCapabilityId;
+
 /**
- * In-process PodMic USB simulator for Phase 0/1 architecture validation.
+ * In-process PodMic USB simulator for Phase 0–2 architecture validation.
  *
- * This is deliberately not a reverse-engineered protocol implementation.
+ * Deliberately not a reverse-engineered protocol implementation.
  * Real HID/USB control belongs behind the same DeviceAdapter contract once
  * protocol feasibility is proven on hardware.
  */
@@ -33,6 +38,11 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
   private readonly stepDb: number;
 
   private gainDb: number;
+  private monitorPercent: number;
+  private muted = false;
+  private highPass = false;
+  private compressor = false;
+
   private online = false;
   private started = false;
   private device: Device | undefined;
@@ -53,6 +63,7 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     this.maxGainDb = options.maxGainDb ?? 40;
     this.stepDb = options.stepDb ?? 1;
     this.gainDb = options.initialGainDb ?? 24;
+    this.monitorPercent = options.initialMonitorPercent ?? 65;
   }
 
   async start(): Promise<void> {
@@ -60,7 +71,7 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     this.online = true;
     this.device = this.buildDevice();
     this.emitDevices();
-    this.emitGain("reconciliation");
+    this.emitAll("reconciliation");
   }
 
   async stop(): Promise<void> {
@@ -80,10 +91,10 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     deviceId: string,
     capabilityId: string,
   ): CapabilityState | undefined {
-    if (deviceId !== this.deviceId || capabilityId !== "gain") {
+    if (deviceId !== this.deviceId) {
       return undefined;
     }
-    return this.gainState(this.online ? "hardware" : "reconciliation");
+    return this.stateFor(capabilityId as CapabilityId, this.online ? "hardware" : "reconciliation");
   }
 
   async setCapabilityValue(
@@ -92,13 +103,14 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     value: number | boolean | string,
     source: StateSource,
   ): Promise<CapabilityState> {
-    this.assertWritable(deviceId, capabilityId);
-    if (typeof value !== "number") {
-      throw new Error("Gain requires a numeric value");
+    this.assertOnline(deviceId);
+    const id = capabilityId as CapabilityId;
+    this.writeValue(id, value);
+    const state = this.stateFor(id, source);
+    if (!state) {
+      throw new Error(`Unsupported capability: ${capabilityId}`);
     }
-    this.gainDb = this.clamp(value);
-    const state = this.gainState(source);
-    this.emitGainState(state);
+    this.emitState(id, state);
     return state;
   }
 
@@ -108,12 +120,23 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     delta: number,
     source: StateSource,
   ): Promise<CapabilityState> {
-    return this.setCapabilityValue(
-      deviceId,
-      capabilityId,
-      this.gainDb + delta * this.stepDb,
-      source,
-    );
+    if (capabilityId === "gain") {
+      return this.setCapabilityValue(
+        deviceId,
+        capabilityId,
+        this.gainDb + delta * this.stepDb,
+        source,
+      );
+    }
+    if (capabilityId === "monitor-level") {
+      return this.setCapabilityValue(
+        deviceId,
+        capabilityId,
+        this.monitorPercent + delta,
+        source,
+      );
+    }
+    throw new Error(`Capability ${capabilityId} does not support relative adjust`);
   }
 
   onDevicesChanged(listener: (devices: Device[]) => void): () => void {
@@ -156,39 +179,116 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     this.online = true;
     this.device = this.buildDevice();
     this.emitDevices();
-    this.emitGain("reconciliation");
+    this.emitAll("reconciliation");
   }
 
-  /** Simulate gain change from RØDE Central / hardware. */
   simulateExternalGainChange(gainDb: number): void {
-    if (!this.online) {
-      throw new Error("Cannot observe external changes while offline");
-    }
-    this.gainDb = this.clamp(gainDb);
-    this.emitGain("hardware");
+    this.assertOnline(this.deviceId);
+    this.gainDb = this.clampGain(gainDb);
+    this.emitState("gain", this.stateFor("gain", "hardware")!);
+  }
+
+  simulateExternalMute(muted: boolean): void {
+    this.assertOnline(this.deviceId);
+    this.muted = muted;
+    this.emitState("mute", this.stateFor("mute", "hardware")!);
   }
 
   getGainDb(): number {
     return this.gainDb;
   }
 
+  getMonitorPercent(): number {
+    return this.monitorPercent;
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
+  isHighPassEnabled(): boolean {
+    return this.highPass;
+  }
+
+  isCompressorEnabled(): boolean {
+    return this.compressor;
+  }
+
   isOnline(): boolean {
     return this.online;
   }
 
-  private assertWritable(deviceId: string, capabilityId: string): void {
+  private writeValue(id: CapabilityId, value: number | boolean | string): void {
+    switch (id) {
+      case "gain":
+        if (typeof value !== "number") throw new Error("Gain requires a number");
+        this.gainDb = this.clampGain(value);
+        return;
+      case "monitor-level":
+        if (typeof value !== "number") throw new Error("Monitor requires a number");
+        this.monitorPercent = Math.max(0, Math.min(100, Math.round(value)));
+        return;
+      case "mute":
+        if (typeof value !== "boolean") throw new Error("Mute requires a boolean");
+        this.muted = value;
+        return;
+      case "high-pass":
+        if (typeof value !== "boolean") throw new Error("High-pass requires a boolean");
+        this.highPass = value;
+        return;
+      case "compressor":
+        if (typeof value !== "boolean") throw new Error("Compressor requires a boolean");
+        this.compressor = value;
+        return;
+      default:
+        throw new Error(`Unsupported capability: ${id}`);
+    }
+  }
+
+  private stateFor(
+    id: CapabilityId,
+    source: StateSource,
+  ): CapabilityState | undefined {
+    const availability = this.online ? "available" : "offline";
+    const timestamp = Date.now();
+    switch (id) {
+      case "gain":
+        return { capabilityId: id, value: this.gainDb, availability, timestamp, source };
+      case "monitor-level":
+        return {
+          capabilityId: id,
+          value: this.monitorPercent,
+          availability,
+          timestamp,
+          source,
+        };
+      case "mute":
+        return { capabilityId: id, value: this.muted, availability, timestamp, source };
+      case "high-pass":
+        return { capabilityId: id, value: this.highPass, availability, timestamp, source };
+      case "compressor":
+        return {
+          capabilityId: id,
+          value: this.compressor,
+          availability,
+          timestamp,
+          source,
+        };
+      default:
+        return undefined;
+    }
+  }
+
+  private assertOnline(deviceId: string): void {
     if (!this.online) {
       throw new Error("PodMic USB is offline");
     }
     if (deviceId !== this.deviceId) {
       throw new Error(`Unknown device: ${deviceId}`);
     }
-    if (capabilityId !== "gain") {
-      throw new Error(`Unsupported capability: ${capabilityId}`);
-    }
   }
 
-  private clamp(value: number): number {
+  private clampGain(value: number): number {
     const stepped =
       Math.round((value - this.minGainDb) / this.stepDb) * this.stepDb +
       this.minGainDb;
@@ -202,7 +302,7 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
       family: "digital-microphone",
       model: "PodMic USB",
       serial: this.serial,
-      firmware: "sim-0.1.0",
+      firmware: "sim-0.2.0",
       connection: "usb",
       status: this.online ? "online" : "offline",
       endpoints: [
@@ -224,26 +324,47 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
               minimum: this.minGainDb,
               maximum: this.maxGainDb,
               step: this.stepDb,
-              metadata: {
-                supportTier: "sim",
-                note: "Range is provisional pending protocol validation",
-              },
+              metadata: { supportTier: "sim" },
             },
             {
               id: "monitor-level",
               type: "Monitoring",
               readable: true,
               writable: true,
-              observable: false,
+              observable: true,
               valueType: "number",
               unit: "%",
               minimum: 0,
               maximum: 100,
               step: 1,
-              metadata: {
-                supportTier: "sim-stub",
-                note: "Declared for Phase 2 depth; not wired in vertical slice",
-              },
+              metadata: { supportTier: "sim" },
+            },
+            {
+              id: "mute",
+              type: "Mute",
+              readable: true,
+              writable: true,
+              observable: true,
+              valueType: "boolean",
+              metadata: { supportTier: "sim" },
+            },
+            {
+              id: "high-pass",
+              type: "HighPassFilter",
+              readable: true,
+              writable: true,
+              observable: true,
+              valueType: "boolean",
+              metadata: { supportTier: "sim" },
+            },
+            {
+              id: "compressor",
+              type: "Compression",
+              readable: true,
+              writable: true,
+              observable: true,
+              valueType: "boolean",
+              metadata: { supportTier: "sim" },
             },
           ],
         },
@@ -251,27 +372,24 @@ export class PodMicUsbSimAdapter implements DeviceAdapter {
     };
   }
 
-  private gainState(source: StateSource): CapabilityState {
-    return {
-      capabilityId: "gain",
-      value: this.gainDb,
-      availability: this.online ? "available" : "offline",
-      timestamp: Date.now(),
-      source,
-    };
+  private emitAll(source: StateSource): void {
+    for (const id of [
+      "gain",
+      "monitor-level",
+      "mute",
+      "high-pass",
+      "compressor",
+    ] as CapabilityId[]) {
+      const state = this.stateFor(id, source);
+      if (state) {
+        this.emitState(id, state);
+      }
+    }
   }
 
-  private emitGain(source: StateSource): void {
-    this.emitGainState(this.gainState(source));
-  }
-
-  private emitGainState(state: CapabilityState): void {
+  private emitState(capabilityId: string, state: CapabilityState): void {
     for (const listener of this.stateListeners) {
-      listener({
-        deviceId: this.deviceId,
-        capabilityId: "gain",
-        state,
-      });
+      listener({ deviceId: this.deviceId, capabilityId, state });
     }
   }
 

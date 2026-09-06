@@ -8,6 +8,7 @@ import type {
   CoreEvent,
   CoreEventListener,
   Device,
+  Endpoint,
   LogicalBinding,
   ResolvedCapability,
 } from "./types.js";
@@ -135,21 +136,28 @@ export class CapabilityCore {
 
   async execute(command: ControlCommand): Promise<CommandResult> {
     const bindingId = command.bindingId;
-    const resolved = this.resolveBinding(bindingId);
+    const base = this.resolveBinding(bindingId);
 
-    if (!resolved) {
+    if (!base) {
       const error = `Binding unavailable: ${bindingId}`;
       this.emit({ type: "command-failed", bindingId, error });
       return { ok: false, error };
     }
 
     if (
-      resolved.device.status === "offline" ||
-      resolved.state.availability === "offline"
+      base.device.status === "offline" ||
+      base.state.availability === "offline"
     ) {
-      const error = `${resolved.binding.label} is offline`;
+      const error = `${base.binding.label} is offline`;
       this.emit({ type: "command-failed", bindingId, error });
-      return { ok: false, resolved, error };
+      return { ok: false, resolved: base, error };
+    }
+
+    const resolved = this.retargetCommand(command, base);
+    if (!resolved) {
+      const error = this.retargetError(command, base);
+      this.emit({ type: "command-failed", bindingId, error });
+      return { ok: false, resolved: base, error };
     }
 
     if (!resolved.capability.writable) {
@@ -204,11 +212,11 @@ export class CapabilityCore {
         return { ok: true, resolved: updated, state };
       }
 
-      const updated = this.resolveBinding(bindingId) ?? {
+      const updated: ResolvedCapability = {
         ...resolved,
-        state,
+        state: this.states.get(key) ?? state,
       };
-      return { ok: true, resolved: updated, state };
+      return { ok: true, resolved: updated, state: updated.state };
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
       this.emit({ type: "command-failed", bindingId, error });
@@ -249,6 +257,30 @@ export class CapabilityCore {
       valueText: formatCapabilityValue(resolved.capability, resolved.state.value),
       availability: resolved.state.availability,
     };
+  }
+
+  /**
+   * Read a sibling capability on the same endpoint as a binding
+   * (e.g. Mute beside a Gain binding).
+   */
+  getSiblingState(
+    bindingId: string,
+    capabilityType: CapabilityType,
+  ): CapabilityState | undefined {
+    const resolved = this.resolveBinding(bindingId);
+    if (!resolved) {
+      return undefined;
+    }
+    const capability = resolved.endpoint.capabilities.find(
+      (item) => item.type === capabilityType,
+    );
+    if (!capability) {
+      return undefined;
+    }
+    return (
+      this.states.get(this.stateKey(resolved.device.id, capability.id)) ??
+      this.readFreshState(resolved.device.id, capability.id)
+    );
   }
 
   private ingestDevices(adapterId: string, devices: Device[]): void {
@@ -435,6 +467,70 @@ export class CapabilityCore {
     }
   }
 
+  /**
+   * Dial press / processing commands may target a sibling capability on the
+   * same endpoint as the bound control (e.g. Mic Gain dial → Mute).
+   */
+  private retargetCommand(
+    command: ControlCommand,
+    base: ResolvedCapability,
+  ): ResolvedCapability | undefined {
+    const targetType = this.commandTargetType(command, base);
+    if (!targetType || targetType === base.capability.type) {
+      return base;
+    }
+
+    const capability = base.endpoint.capabilities.find((c) => c.type === targetType);
+    if (!capability) {
+      return undefined;
+    }
+
+    const stateKey = this.stateKey(base.device.id, capability.id);
+    const state =
+      this.states.get(stateKey) ??
+      this.readFreshState(base.device.id, capability.id) ??
+      this.offlineState(capability.id);
+
+    return {
+      binding: base.binding,
+      device: base.device,
+      endpoint: base.endpoint,
+      capability,
+      state,
+    };
+  }
+
+  private commandTargetType(
+    command: ControlCommand,
+    base: ResolvedCapability,
+  ): CapabilityType | undefined {
+    switch (command.type) {
+      case "SetMute":
+      case "ToggleMute":
+        return "Mute";
+      case "ToggleListen":
+        return "Listen";
+      case "SetProcessing":
+        return command.capabilityType;
+      case "SetGain":
+      case "AdjustGain":
+        return "Gain";
+      case "SetLevel":
+      case "AdjustLevel":
+        return base.capability.type === "Monitoring" ? "Monitoring" : "Level";
+      default:
+        return base.capability.type;
+    }
+  }
+
+  private retargetError(
+    command: ControlCommand,
+    base: ResolvedCapability,
+  ): string {
+    const target = this.commandTargetType(command, base);
+    return `Endpoint ${base.endpoint.label} has no ${target ?? "target"} capability`;
+  }
+
   private readFreshState(
     deviceId: string,
     capabilityId: string,
@@ -516,4 +612,160 @@ export function createMicGainBinding(
     capabilityType: "Gain" as CapabilityType,
     ...overrides,
   };
+}
+
+/** Create a logical binding for any capability type. */
+export function createBinding(
+  id: string,
+  label: string,
+  capabilityType: CapabilityType,
+  overrides: Partial<LogicalBinding> = {},
+): LogicalBinding {
+  return {
+    id,
+    label,
+    capabilityType,
+    ...overrides,
+  };
+}
+
+export interface SuggestedBinding {
+  bank: "mix" | "mic" | "outputs" | "production";
+  binding: LogicalBinding;
+  role: string;
+}
+
+function bindingLocation(
+  deviceId: string,
+  endpointId: string,
+  sourceHint?: string,
+): Partial<LogicalBinding> {
+  return sourceHint
+    ? { deviceId, endpointId, sourceHint }
+    : { deviceId, endpointId };
+}
+
+/**
+ * Propose Stream Deck banks from the discovered device graph.
+ * Users can customize; this is the auto-layout starting point from the intent.
+ */
+export function suggestCreatorBindings(devices: Device[]): SuggestedBinding[] {
+  const suggestions: SuggestedBinding[] = [];
+
+  for (const device of devices) {
+    if (device.status === "offline") {
+      continue;
+    }
+
+    for (const endpoint of device.endpoints) {
+      const source = (endpoint.source ?? endpoint.label).toLowerCase();
+      const label = endpoint.label;
+
+      const gain = endpoint.capabilities.find((c) => c.type === "Gain");
+      const level = endpoint.capabilities.find((c) => c.type === "Level");
+      const mute = endpoint.capabilities.find((c) => c.type === "Mute");
+      const monitor = endpoint.capabilities.find((c) => c.type === "Monitoring");
+      const pad = endpoint.capabilities.find((c) => c.type === "PadTrigger");
+
+      const isMic =
+        endpoint.kind === "microphone" ||
+        source.includes("podmic") ||
+        source.includes("mic") ||
+        label.toLowerCase().includes("mic");
+
+      const location = bindingLocation(device.id, endpoint.id, endpoint.source);
+
+      if (isMic && gain) {
+        suggestions.push({
+          bank: "mix",
+          role: "mic-level-or-gain",
+          binding: createMicGainBinding({
+            id: `${endpoint.id}:gain`,
+            label: "MIC",
+            ...location,
+          }),
+        });
+        suggestions.push({
+          bank: "mic",
+          role: "mic-gain",
+          binding: createBinding(`${endpoint.id}:gain-detail`, "GAIN", "Gain", location),
+        });
+      } else if (level && (endpoint.kind === "channel" || endpoint.kind === "virtual-source")) {
+        const short = shortLabel(endpoint);
+        suggestions.push({
+          bank: "mix",
+          role: "channel-level",
+          binding: createBinding(`${endpoint.id}:level`, short, "Level", location),
+        });
+      }
+
+      if (isMic && monitor) {
+        suggestions.push({
+          bank: "mic",
+          role: "monitor",
+          binding: createBinding(`${endpoint.id}:monitor`, "MONITOR", "Monitoring", {
+            deviceId: device.id,
+            endpointId: endpoint.id,
+          }),
+        });
+      }
+
+      if (mute && isMic) {
+        suggestions.push({
+          bank: "mic",
+          role: "mute",
+          binding: createBinding(`${endpoint.id}:mute`, "MUTE", "Mute", {
+            deviceId: device.id,
+            endpointId: endpoint.id,
+          }),
+        });
+      }
+
+      if (
+        endpoint.kind === "headphone" ||
+        endpoint.kind === "output" ||
+        label.toLowerCase().includes("headphone")
+      ) {
+        if (level || monitor) {
+          suggestions.push({
+            bank: "outputs",
+            role: "headphones",
+            binding: createBinding(
+              `${endpoint.id}:out`,
+              "HP",
+              level ? "Level" : "Monitoring",
+              {
+                deviceId: device.id,
+                endpointId: endpoint.id,
+              },
+            ),
+          });
+        }
+      }
+
+      if (pad) {
+        suggestions.push({
+          bank: "production",
+          role: "smart-pad",
+          binding: createBinding(`${endpoint.id}:pad`, label || "PAD", "PadTrigger", {
+            deviceId: device.id,
+            endpointId: endpoint.id,
+          }),
+        });
+      }
+    }
+  }
+
+  return suggestions;
+}
+
+function shortLabel(endpoint: Endpoint): string {
+  const source = endpoint.source ?? endpoint.label;
+  const upper = source.toUpperCase();
+  if (upper.includes("GAME")) return "GAME";
+  if (upper.includes("CHAT") || upper.includes("DISCORD")) return "CHAT";
+  if (upper.includes("MUSIC") || upper.includes("SPOTIFY")) return "MUSIC";
+  if (upper.includes("BROWSER")) return "BROWSER";
+  if (upper.includes("MIC")) return "MIC";
+  return endpoint.label.slice(0, 8).toUpperCase();
 }
