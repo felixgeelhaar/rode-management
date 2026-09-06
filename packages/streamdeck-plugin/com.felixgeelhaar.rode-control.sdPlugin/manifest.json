@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "com.felixgeelhaar.rode-control",
+  "Name": "RØDE Control",
+  "Version": "0.1.0.0",
+  "Author": "Felix Geelhaar",
+  "Category": "RØDE Control",
+  "CategoryIcon": "imgs/category-icon",
+  "Icon": "imgs/plugin-icon",
+  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Phase 1: Mic Gain vertical slice.",
+  "CodePath": "bin/plugin.js",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.6"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "Actions": [
+    {
+      "UUID": "com.felixgeelhaar.rode-control.mic-gain",
+      "Name": "Mic Gain",
+      "Icon": "imgs/actions/mic-gain/icon",
+      "Tooltip": "Adjust My Mic gain on connected RØDE hardware",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust gain",
+          "Push": "Reserved for mute",
+          "Touch": "Show mic controls (future)"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/mic-gain/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ]
+    }
+  ]
+}
