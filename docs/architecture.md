@@ -70,7 +70,11 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 
 ## Binding persistence
 
-`CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Demo: `npm run demo:bindings`.
+`CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck / CLI host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Set `RODE_CONTROL_BINDINGS_AUTOSAVE` to persist binding changes back to disk. Demo: `npm run demo:bindings`.
+
+## Dial coalescing
+
+Rapid `AdjustGain` / `AdjustLevel` ticks for the same binding are batched within ~24 ms into a single adapter write (`dialCoalesceMs`). Non-adjust commands flush pending dial batches first.
 
 ## Stream Deck+ actions
 

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import type { CapabilityCore } from "@rode-control/core";
 import {
   CapabilityCore as Core,
@@ -36,6 +36,9 @@ export interface BootstrapOptions {
   mode?: AdapterMode;
   bindingsPath?: string;
   bindingsReplace?: boolean;
+  /** When set, write the binding profile after binding changes (debounced). */
+  bindingsAutosavePath?: string;
+  dialCoalesceMs?: number;
 }
 
 let corePromise: Promise<CapabilityCore> | undefined;
@@ -47,6 +50,7 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   RODE_CONTROL_ADAPTER
  *   RODE_CONTROL_BINDINGS_PATH
  *   RODE_CONTROL_BINDINGS_REPLACE=1
+ *   RODE_CONTROL_BINDINGS_AUTOSAVE
  */
 export async function createCapabilityCore(
   options: BootstrapOptions = {},
@@ -59,8 +63,15 @@ export async function createCapabilityCore(
   const bindingsReplace =
     options.bindingsReplace ??
     process.env.RODE_CONTROL_BINDINGS_REPLACE === "1";
+  const autosavePath =
+    options.bindingsAutosavePath ?? process.env.RODE_CONTROL_BINDINGS_AUTOSAVE;
 
-  const core = new Core({ preferMixerOwnership: true });
+  const core = new Core({
+    preferMixerOwnership: true,
+    ...(options.dialCoalesceMs !== undefined
+      ? { dialCoalesceMs: options.dialCoalesceMs }
+      : {}),
+  });
 
   if (mode === "sim") {
     core.registerAdapter(
@@ -100,7 +111,33 @@ export async function createCapabilityCore(
     core.importProfile(json, { replace: bindingsReplace });
   }
 
+  if (autosavePath) {
+    attachAutosave(core, autosavePath, mode);
+  }
+
   return core;
+}
+
+function attachAutosave(
+  core: CapabilityCore,
+  path: string,
+  mode: AdapterMode,
+): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      void writeFile(path, core.exportProfileJson(mode), "utf8");
+    }, 250);
+  };
+  core.subscribe((event) => {
+    if (
+      event.type === "binding-online" ||
+      event.type === "binding-offline"
+    ) {
+      schedule();
+    }
+  });
 }
 
 /** Process-wide singleton used by the Stream Deck plugin. */

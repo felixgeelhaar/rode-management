@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -68,6 +68,27 @@ describe("createCapabilityCore", () => {
     });
     expect(core.getBinding("custom-chat")?.label).toBe("CHAT CUSTOM");
     expect(core.getControlSurface("custom-chat").availability).toBe("available");
+    await core.stop();
+  });
+
+  it("autosaves binding profile after upsert events", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "rode-autosave-"));
+    const path = join(dir, "auto.json");
+    const core = await createCapabilityCore({
+      mode: "sim",
+      bindingsAutosavePath: path,
+    });
+    core.upsertBinding({
+      id: "extra-mute",
+      label: "EXTRA",
+      capabilityType: "Mute",
+      sourceHint: "PodMic",
+    });
+    await new Promise((r) => setTimeout(r, 350));
+    const saved = JSON.parse(await readFile(path, "utf8")) as {
+      bindings: Array<{ id: string }>;
+    };
+    expect(saved.bindings.some((b) => b.id === "extra-mute")).toBe(true);
     await core.stop();
   });
 });

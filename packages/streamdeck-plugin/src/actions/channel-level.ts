@@ -2,10 +2,12 @@ import {
   action,
   DialDownEvent,
   DialRotateEvent,
+  DidReceiveSettingsEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import { BindingFeedbackSession } from "../binding-feedback.js";
 import {
   CHAT_LEVEL_BINDING_ID,
   GAME_LEVEL_BINDING_ID,
@@ -16,49 +18,38 @@ import {
 
 type LevelSettings = {
   bindingId?: string;
-  /** dB (or %) change per dial tick */
   sensitivity?: number;
 };
 
-/**
- * Generic Stream Deck+ level dial for mix sources (Game / Chat / Music / …).
- *
- * Rotate → AdjustLevel
- * Press  → ToggleMute (same-endpoint retarget when Mute exists)
- * Display → live level / OFFLINE / N/A
- */
 @action({ UUID: "com.felixgeelhaar.rode-control.channel-level" })
 export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
-  private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly feedback = new BindingFeedbackSession();
 
   override async onWillAppear(ev: WillAppearEvent<LevelSettings>): Promise<void> {
     const bindingId = this.resolveBindingId(ev.payload.settings);
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        (event.type === "state-changed" &&
-          (event.resolved.binding.id === bindingId ||
-            (event.resolved.capability.type === "Mute" &&
-              event.resolved.endpoint.id ===
-                core.resolveBinding(bindingId)?.endpoint.id))) ||
-        (event.type === "binding-offline" && event.bindingId === bindingId) ||
-        (event.type === "binding-online" && event.bindingId === bindingId)
-      ) {
-        void this.render(ev.action, bindingId);
-      }
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
+      includeMuteSibling: true,
+      render: (action, id) => this.render(action, id),
     });
+  }
 
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, bindingId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<LevelSettings>,
+  ): Promise<void> {
+    await this.feedback.onDidReceiveSettings(ev, {
+      defaultBindingId: GAME_LEVEL_BINDING_ID,
+      includeMuteSibling: true,
+      render: (action, id) => this.render(action, id),
+    });
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<LevelSettings>,
   ): Promise<void> {
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.feedback.onWillDisappear(ev);
   }
 
   override async onDialRotate(ev: DialRotateEvent<LevelSettings>): Promise<void> {
@@ -115,9 +106,7 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
     actionRef: WillAppearEvent<LevelSettings>["action"],
     bindingId: string,
   ): Promise<void> {
-    if (!actionRef.isDial()) {
-      return;
-    }
+    if (!actionRef.isDial()) return;
     const core = await getCapabilityCore();
     const surface = core.getControlSurface(bindingId);
     const muted = core.getSiblingState(bindingId, "Mute")?.value === true;
@@ -129,14 +118,10 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
     } else if (muted) {
       value = `MUTE ${surface.valueText}`;
     }
-    await actionRef.setFeedback({
-      title: surface.label,
-      value,
-    });
+    await actionRef.setFeedback({ title: surface.label, value });
   }
 }
 
-/** Convenience defaults for property inspector wiring. */
 export const DEFAULT_MIX_BINDING_IDS = {
   game: GAME_LEVEL_BINDING_ID,
   chat: CHAT_LEVEL_BINDING_ID,
