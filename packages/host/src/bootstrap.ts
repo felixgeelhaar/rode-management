@@ -11,6 +11,7 @@ import {
   RodecasterDuoMidiAdapter,
   RodecasterDuoSimAdapter,
 } from "@rode-control/adapter-rodecaster-duo";
+import { builtInWorkflows } from "./workflows.js";
 
 export const MIC_GAIN_BINDING_ID = "my-mic-gain";
 export const MIC_MONITOR_BINDING_ID = "my-mic-monitor";
@@ -109,6 +110,10 @@ export async function createCapabilityCore(
   if (bindingsPath) {
     const json = await readFile(bindingsPath, "utf8");
     core.importProfile(json, { replace: bindingsReplace });
+  }
+
+  for (const workflow of builtInWorkflows()) {
+    core.upsertWorkflow(workflow);
   }
 
   if (autosavePath) {

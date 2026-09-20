@@ -42,6 +42,9 @@
     <label for="bindingId">Binding ID</label>
     <input id="bindingId" type="text" placeholder="e.g. game-level" spellcheck="false" />
 
+    <label for="workflowId">Workflow ID (Apply Workflow key)</label>
+    <input id="workflowId" type="text" placeholder="streaming" spellcheck="false" />
+
     <label for="sensitivity">Sensitivity (dial ticks)</label>
     <input id="sensitivity" type="number" min="0.1" step="0.5" placeholder="1" />
 
@@ -50,7 +53,7 @@
       <code>game-level</code>, <code>chat-level</code>, <code>music-level</code>,
       <code>headphones-level</code>, <code>mic-mute</code>,
       <code>game-listen</code>, <code>pad-1</code>, <code>record</code>,
-      <code>my-mic-hpf</code>, <code>my-mic-comp</code>.
+      <code>my-mic-hpf</code>, <code>my-mic-comp</code>. Workflows: <code>streaming</code>, <code>podcast</code>.
       Leave blank to use the action default.
     </p>
 
@@ -85,6 +88,7 @@
       function applySettings(settings) {
         settings = settings || {};
         document.getElementById("bindingId").value = settings.bindingId || "";
+        document.getElementById("workflowId").value = settings.workflowId || "";
         document.getElementById("sensitivity").value =
           settings.sensitivity != null ? settings.sensitivity : "";
       }
@@ -95,6 +99,8 @@
         const sensitivityRaw = document.getElementById("sensitivity").value.trim();
         const settings = {};
         if (bindingId) settings.bindingId = bindingId;
+        const workflowId = document.getElementById("workflowId").value.trim();
+        if (workflowId) settings.workflowId = workflowId;
         if (sensitivityRaw !== "" && !Number.isNaN(Number(sensitivityRaw))) {
           settings.sensitivity = Number(sensitivityRaw);
         }
@@ -108,6 +114,7 @@
       }
 
       document.getElementById("bindingId").addEventListener("change", saveSettings);
+      document.getElementById("workflowId").addEventListener("change", saveSettings);
       document.getElementById("sensitivity").addEventListener("change", saveSettings);
 
       window.connectElgatoStreamDeckSocket = connectElgatoStreamDeckSocket;

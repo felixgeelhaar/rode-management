@@ -40,6 +40,7 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 | 3b Official MIDI (Tier B) | `RodecasterDuoMidiAdapter` + mock transport — mute/listen/pads/record ([midi-tier-b.md](./midi-tier-b.md)) |
 | 4 Creator surface (software) | Listen, Tier honesty, topology, mic depth, binding profiles, property inspector |
 | 5 Second client (CLI) | `@rode-control/cli` + shared `@rode-control/host` bootstrap |
+| 5b Workflow presets | Built-in Streaming/Podcast workflows + Apply Workflow key |
 | 5+ Ecosystem / workflows | Not started |
 
 ## Adapter contract
@@ -71,6 +72,10 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 ## Binding persistence
 
 `CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck / CLI host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Set `RODE_CONTROL_BINDINGS_AUTOSAVE` to persist binding changes back to disk. Demo: `npm run demo:bindings`.
+
+## Workflow presets
+
+Product-level workflows (`streaming`, `podcast`) store absolute values across bindings. Apply via `ApplyWorkflow` / Stream Deck **Apply Workflow** key / `npm run cli -- workflow apply streaming`. Capture the live surface with `workflow capture`.
 
 ## Dial coalescing
 

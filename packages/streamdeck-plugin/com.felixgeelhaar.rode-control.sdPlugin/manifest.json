@@ -2,12 +2,12 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "R\u00d8DE Control",
-  "Version": "0.6.0.0",
+  "Version": "0.7.0.0",
   "Author": "Felix Geelhaar",
   "Category": "R\u00d8DE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for your R\u00d8DE audio setup. Mic gain/monitor/DSP, mix/headphones levels, mute/listen, SMART pads, and record \u2014 with binding profiles and property inspector.",
+  "Description": "Capability-driven Stream Deck+ controls for R\u00d8DE setups \u2014 dials, keys, workflows, binding profiles.",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -210,6 +210,24 @@
         }
       ],
       "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.apply-workflow",
+      "Name": "Apply Workflow",
+      "Icon": "imgs/actions/apply-workflow/icon",
+      "Tooltip": "Apply a product workflow preset (Streaming / Podcast)",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html",
+      "States": [
+        {
+          "Image": "imgs/actions/apply-workflow/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "STREAM"
+        }
+      ]
     }
   ]
 }

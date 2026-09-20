@@ -19,6 +19,10 @@ import type {
   ResolvedCapability,
   Topology,
 } from "./types.js";
+import {
+  captureWorkflowFromBindings,
+  type WorkflowProfile,
+} from "./workflow.js";
 
 export interface CapabilityCoreOptions {
   /** When true, missing devices keep bindings configured but mark them offline. */
@@ -60,6 +64,7 @@ export class CapabilityCore {
   private readonly options: Required<CapabilityCoreOptions>;
   private topology: Topology = { edges: [] };
   private readonly pendingDialAdjusts = new Map<string, PendingDialAdjust>();
+  private readonly workflows = new Map<string, WorkflowProfile>();
 
   constructor(options: CapabilityCoreOptions = {}) {
     this.options = {
@@ -177,6 +182,95 @@ export class CapabilityCore {
     }
   }
 
+  upsertWorkflow(workflow: WorkflowProfile): void {
+    this.workflows.set(workflow.id, {
+      ...workflow,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    });
+  }
+
+  getWorkflow(workflowId: string): WorkflowProfile | undefined {
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) return undefined;
+    return {
+      ...workflow,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    };
+  }
+
+  listWorkflows(): WorkflowProfile[] {
+    return [...this.workflows.values()].map((workflow) => ({
+      ...workflow,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    }));
+  }
+
+  /** Snapshot current binding values into a workflow preset. */
+  captureWorkflow(
+    id: string,
+    label: string,
+    description?: string,
+  ): WorkflowProfile {
+    const workflow = captureWorkflowFromBindings(
+      id,
+      label,
+      this.listBindings(),
+      (bindingId) => this.resolveBinding(bindingId)?.state.value ?? null,
+      description,
+    );
+    this.upsertWorkflow(workflow);
+    return workflow;
+  }
+
+  async applyWorkflow(workflowId: string): Promise<{
+    ok: boolean;
+    workflowId: string;
+    results: CommandResult[];
+  }> {
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) {
+      const error = `Unknown workflow: ${workflowId}`;
+      this.emit({ type: "command-failed", bindingId: workflowId, error });
+      return { ok: false, workflowId, results: [{ ok: false, error }] };
+    }
+
+    const results: CommandResult[] = [];
+    for (const step of workflow.steps) {
+      const binding = this.getBinding(step.bindingId);
+      if (!binding) {
+        results.push({
+          ok: false,
+          error: `Binding unavailable: ${step.bindingId}`,
+        });
+        continue;
+      }
+      const command = this.absoluteCommandForBinding(
+        binding,
+        step.value,
+      );
+      if (!command) {
+        results.push({
+          ok: false,
+          error: `Cannot apply absolute value to ${binding.capabilityType}`,
+        });
+        continue;
+      }
+      results.push(await this.execute(command));
+    }
+
+    const failed = results.filter((r) => !r.ok).length;
+    const applied = results.length - failed;
+    const ok = failed === 0 && applied > 0;
+    this.emit({
+      type: "workflow-applied",
+      workflowId,
+      ok,
+      applied,
+      failed,
+    });
+    return { ok, workflowId, results };
+  }
+
   listDevices(): Device[] {
     return [...this.devices.values()];
   }
@@ -218,6 +312,38 @@ export class CapabilityCore {
   }
 
   async execute(command: ControlCommand): Promise<CommandResult> {
+    if (command.type === "ApplyWorkflow") {
+      const outcome = await this.applyWorkflow(command.workflowId);
+      if (outcome.ok) {
+        return { ok: true };
+      }
+      return {
+        ok: false,
+        error: `Workflow ${command.workflowId} applied with failures`,
+      };
+    }
+
+    if (command.type === "ApplyPreset") {
+      // Prefer product workflows when the preset id matches a registered workflow.
+      if (this.workflows.has(command.presetId)) {
+        const outcome = await this.applyWorkflow(command.presetId);
+        if (outcome.ok) {
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          error: `Workflow ${command.presetId} applied with failures`,
+        };
+      }
+      const error = `Unknown device/product preset: ${command.presetId}`;
+      this.emit({
+        type: "command-failed",
+        bindingId: command.bindingId,
+        error,
+      });
+      return { ok: false, error };
+    }
+
     if (
       (command.type === "AdjustGain" || command.type === "AdjustLevel") &&
       this.options.dialCoalesceMs > 0
@@ -234,6 +360,48 @@ export class CapabilityCore {
     }
 
     return this.executeImmediate(command);
+  }
+
+  private absoluteCommandForBinding(
+    binding: LogicalBinding,
+    value: number | boolean | string,
+  ): ControlCommand | undefined {
+    switch (binding.capabilityType) {
+      case "Gain":
+        return typeof value === "number"
+          ? { type: "SetGain", bindingId: binding.id, value }
+          : undefined;
+      case "Level":
+      case "Monitoring":
+        return typeof value === "number"
+          ? { type: "SetLevel", bindingId: binding.id, value }
+          : undefined;
+      case "Mute":
+        return typeof value === "boolean"
+          ? { type: "SetMute", bindingId: binding.id, value }
+          : undefined;
+      case "Listen":
+        return typeof value === "boolean"
+          ? {
+              type: "SetProcessing",
+              bindingId: binding.id,
+              capabilityType: "Listen",
+              value,
+            }
+          : undefined;
+      case "HighPassFilter":
+      case "Compression":
+      case "NoiseGate":
+      case "Recording":
+        return {
+          type: "SetProcessing",
+          bindingId: binding.id,
+          capabilityType: binding.capabilityType,
+          value,
+        };
+      default:
+        return undefined;
+    }
   }
 
   private enqueueDialAdjust(
@@ -295,7 +463,9 @@ export class CapabilityCore {
     await Promise.all(keys.map((key) => this.flushDialAdjust(key)));
   }
 
-  private async executeImmediate(command: ControlCommand): Promise<CommandResult> {
+  private async executeImmediate(
+    command: Exclude<ControlCommand, { type: "ApplyWorkflow" }>,
+  ): Promise<CommandResult> {
     const bindingId = command.bindingId;
     const base = this.resolveBinding(bindingId);
 

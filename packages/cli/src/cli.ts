@@ -23,6 +23,9 @@ function usage(): never {
   rode-control devices
   rode-control surface [bindingId]
   rode-control exec <CommandType> <bindingId> [--delta N] [--value V]
+  rode-control workflow list
+  rode-control workflow apply <id>
+  rode-control workflow capture <id> [label]
   rode-control export [path]
   rode-control import <path> [--replace]
 
@@ -63,6 +66,7 @@ async function main(): Promise<void> {
             status: d.status,
           })),
           bindings: core.listBindings().length,
+          workflows: core.listWorkflows().map((w) => w.id),
         });
         break;
       }
@@ -100,6 +104,36 @@ async function main(): Promise<void> {
           console.log("surface", core.getControlSurface(bindingId));
         }
         process.exitCode = result.ok ? 0 : 1;
+        break;
+      }
+      case "workflow": {
+        const sub = argv[1];
+        if (sub === "list") {
+          for (const workflow of core.listWorkflows()) {
+            console.log(
+              `${workflow.id}\t${workflow.label}\t${workflow.steps.length} steps` +
+                (workflow.description ? `\t${workflow.description}` : ""),
+            );
+          }
+          break;
+        }
+        if (sub === "apply") {
+          const id = argv[2];
+          if (!id) usage();
+          const outcome = await core.applyWorkflow(id);
+          console.log(outcome);
+          process.exitCode = outcome.ok ? 0 : 1;
+          break;
+        }
+        if (sub === "capture") {
+          const id = argv[2];
+          if (!id) usage();
+          const label = argv[3] ?? id;
+          const workflow = core.captureWorkflow(id, label);
+          console.log(workflow);
+          break;
+        }
+        usage();
         break;
       }
       case "export": {
@@ -186,6 +220,10 @@ function buildCommand(
         capabilityType: "HighPassFilter",
         value: value === "true" || value === "1",
       };
+    case "ApplyWorkflow":
+      return { type, workflowId: bindingId };
+    case "ApplyPreset":
+      return { type, bindingId, presetId: value ?? bindingId };
     default:
       throw new Error(`Unsupported command type: ${type}`);
   }

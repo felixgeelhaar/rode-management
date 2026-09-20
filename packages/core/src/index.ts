@@ -17,3 +17,10 @@ export {
   serializeBindingProfile,
 } from "./bindings-io.js";
 export type { BindingProfile } from "./bindings-io.js";
+export {
+  captureWorkflowFromBindings,
+  createWorkflowProfile,
+  parseWorkflowProfile,
+  serializeWorkflowProfile,
+} from "./workflow.js";
+export type { WorkflowProfile, WorkflowStep } from "./workflow.js";
