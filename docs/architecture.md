@@ -65,19 +65,25 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 
 `RODE_CONTROL_ADAPTER=topology` registers PodMic USB sim + Duo sim together for this path.
 
+## Binding persistence
+
+`CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Demo: `npm run demo:bindings`.
+
 ## Stream Deck+ actions
 
 | Action | Rotate / Key | Press | Feedback |
 |--------|--------------|-------|----------|
 | Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTED` / `OFFLINE` / `N/A` |
 | Mic Monitor | `AdjustLevel` on Monitoring | reserved | live % / `OFFLINE` / `N/A` |
-| Channel Level | `AdjustLevel` | `ToggleMute` | live level / `MUTE …` / `OFFLINE` / `N/A` |
+| Channel Level | `AdjustLevel` (Game/Chat/Music/**HP**) | `ToggleMute` | live level / `MUTE …` / `OFFLINE` / `N/A` |
 | Mute Toggle | — | `ToggleMute` | `MUTED` / label |
 | Listen Toggle | — | `ToggleListen` | `LISTEN ●` / label |
 | High-Pass | — | `ToggleProcessing` (HPF) | `HPF ●` / `HPF` |
 | Compressor | — | `ToggleProcessing` (Compression) | `COMP ●` / `COMP` |
 | SMART Pad | — | `TriggerPad` | pad label / brief `FIRE` |
 | Record | — | Start/Stop recording | `REC` / `REC ●` |
+
+Property Inspector (`ui/property-inspector.html`) edits `bindingId` and dial `sensitivity` per action instance.
 
 Default runtime uses the PodMic simulator (`RODE_CONTROL_ADAPTER=sim`).  
 Set `RODE_CONTROL_ADAPTER=rodecaster` for the Duo mix-bank simulator.  

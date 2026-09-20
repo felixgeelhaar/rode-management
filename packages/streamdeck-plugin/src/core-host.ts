@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import type { CapabilityCore } from "@rode-control/core";
 import {
   CapabilityCore as Core,
@@ -18,6 +19,7 @@ export const MIC_COMP_BINDING_ID = "my-mic-comp";
 export const GAME_LEVEL_BINDING_ID = "game-level";
 export const CHAT_LEVEL_BINDING_ID = "chat-level";
 export const MUSIC_LEVEL_BINDING_ID = "music-level";
+export const HEADPHONES_LEVEL_BINDING_ID = "headphones-level";
 export const MIC_MUTE_BINDING_ID = "mic-mute";
 export const GAME_LISTEN_BINDING_ID = "game-listen";
 export const PAD_1_BINDING_ID = "pad-1";
@@ -34,6 +36,9 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   rodecaster-midi  — Official Duo/Pro II MIDI surface (Tier B; mock transport)
  *   topology         — PodMic USB sim + Duo sim together (mixer-preferred Gain)
  *   none             — no adapters (bindings stay offline)
+ *
+ * RODE_CONTROL_BINDINGS_PATH — optional JSON binding profile to load after seed
+ * (merge). Use replace semantics by also setting RODE_CONTROL_BINDINGS_REPLACE=1.
  */
 export async function getCapabilityCore(): Promise<CapabilityCore> {
   if (!corePromise) {
@@ -79,7 +84,18 @@ async function bootstrapCore(): Promise<CapabilityCore> {
     seedPodMicBindings(core);
   }
 
+  await maybeLoadBindingProfile(core);
   return core;
+}
+
+async function maybeLoadBindingProfile(core: CapabilityCore): Promise<void> {
+  const path = process.env.RODE_CONTROL_BINDINGS_PATH;
+  if (!path) {
+    return;
+  }
+  const json = await readFile(path, "utf8");
+  const replace = process.env.RODE_CONTROL_BINDINGS_REPLACE === "1";
+  core.importProfile(json, { replace });
 }
 
 function seedTopology(core: CapabilityCore): void {
@@ -132,7 +148,9 @@ function seedMicProcessingBindings(core: CapabilityCore): void {
 
 function seedRodecasterBindings(core: CapabilityCore): void {
   const suggestions = suggestCreatorBindings(core.listDevices());
-  for (const suggestion of suggestions.filter((s) => s.bank === "mix")) {
+  for (const suggestion of suggestions.filter(
+    (s) => s.bank === "mix" || s.bank === "outputs",
+  )) {
     core.upsertBinding(suggestion.binding);
   }
 
@@ -156,6 +174,11 @@ function seedRodecasterBindings(core: CapabilityCore): void {
   core.upsertBinding(
     createBinding(MUSIC_LEVEL_BINDING_ID, "MUSIC", "Level", {
       sourceHint: "Music",
+    }),
+  );
+  core.upsertBinding(
+    createBinding(HEADPHONES_LEVEL_BINDING_ID, "HP", "Level", {
+      sourceHint: "Headphones",
     }),
   );
 }

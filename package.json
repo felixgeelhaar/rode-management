@@ -16,7 +16,8 @@
     "demo:vertical-slice": "npm run demo:vertical-slice -w @rode-control/adapter-podmic-usb",
     "demo:mix-bank": "npm run demo:mix-bank -w @rode-control/adapter-rodecaster-duo",
     "demo:midi": "npm run demo:midi -w @rode-control/adapter-rodecaster-duo",
-    "demo:topology": "npm run demo:topology -w @rode-control/adapter-rodecaster-duo"
+    "demo:topology": "npm run demo:topology -w @rode-control/adapter-rodecaster-duo",
+    "demo:bindings": "npm run demo:bindings -w @rode-control/adapter-rodecaster-duo"
   },
   "engines": {
     "node": ">=20"

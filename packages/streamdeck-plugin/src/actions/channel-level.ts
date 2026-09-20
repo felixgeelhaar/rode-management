@@ -10,6 +10,7 @@ import {
   CHAT_LEVEL_BINDING_ID,
   GAME_LEVEL_BINDING_ID,
   getCapabilityCore,
+  HEADPHONES_LEVEL_BINDING_ID,
   MUSIC_LEVEL_BINDING_ID,
 } from "../core-host.js";
 
@@ -140,4 +141,5 @@ export const DEFAULT_MIX_BINDING_IDS = {
   game: GAME_LEVEL_BINDING_ID,
   chat: CHAT_LEVEL_BINDING_ID,
   music: MUSIC_LEVEL_BINDING_ID,
+  headphones: HEADPHONES_LEVEL_BINDING_ID,
 } as const;

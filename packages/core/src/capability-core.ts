@@ -1,4 +1,10 @@
 import type { DeviceAdapter } from "./adapter.js";
+import {
+  createBindingProfile,
+  parseBindingProfile,
+  serializeBindingProfile,
+  type BindingProfile,
+} from "./bindings-io.js";
 import type {
   CapabilityDescriptor,
   CapabilityState,
@@ -113,6 +119,43 @@ export class CapabilityCore {
 
   listBindings(): LogicalBinding[] {
     return [...this.bindings.values()];
+  }
+
+  clearBindings(): void {
+    this.bindings.clear();
+  }
+
+  /** Snapshot bindings (+ topology) for persistence or sharing. */
+  exportProfile(adapterHint?: string): BindingProfile {
+    return createBindingProfile(this.listBindings(), {
+      topology: this.getTopology(),
+      ...(adapterHint !== undefined ? { adapterHint } : {}),
+    });
+  }
+
+  exportProfileJson(adapterHint?: string): string {
+    return serializeBindingProfile(this.exportProfile(adapterHint));
+  }
+
+  /**
+   * Load a profile. When `replace` is true, clears existing bindings first.
+   * Topology from the profile replaces the current graph when present.
+   */
+  importProfile(
+    profile: BindingProfile | string,
+    options: { replace?: boolean } = {},
+  ): void {
+    const parsed =
+      typeof profile === "string" ? parseBindingProfile(profile) : profile;
+    if (options.replace) {
+      this.clearBindings();
+    }
+    if (parsed.topology) {
+      this.setTopology(parsed.topology);
+    }
+    for (const binding of parsed.bindings) {
+      this.upsertBinding(binding);
+    }
   }
 
   listDevices(): Device[] {

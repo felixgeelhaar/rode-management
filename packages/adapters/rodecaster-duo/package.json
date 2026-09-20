@@ -17,7 +17,8 @@
     "test": "vitest run",
     "demo:mix-bank": "tsx src/demo-mix-bank.ts",
     "demo:midi": "tsx src/demo-midi.ts",
-    "demo:topology": "tsx src/demo-topology.ts"
+    "demo:topology": "tsx src/demo-topology.ts",
+    "demo:bindings": "tsx src/demo-bindings.ts"
   },
   "dependencies": {
     "@rode-control/core": "0.1.0"

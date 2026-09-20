@@ -25,6 +25,7 @@ npm run demo:vertical-slice
 npm run demo:mix-bank
 npm run demo:midi
 npm run demo:topology
+npm run demo:bindings
 npm run build
 ```
 
@@ -75,9 +76,13 @@ RODE_CONTROL_ADAPTER=rodecaster-midi
 
 # Dual-adapter topology (mixer-preferred Gain)
 RODE_CONTROL_ADAPTER=topology
+
+# Optional: merge/replace bindings from a JSON profile
+RODE_CONTROL_BINDINGS_PATH=./my-layout.json
+RODE_CONTROL_BINDINGS_REPLACE=1
 ```
 
-Key actions (Mute / Listen / SMART Pad / Record) work in MIDI mode; Channel Level dials show `N/A` by design on Tier B.
+Key actions (Mute / Listen / SMART Pad / Record / HPF / COMP) work in the appropriate modes. Channel Level dials show `N/A` on Tier B MIDI. Use the property inspector to point a Channel Level instance at `chat-level`, `music-level`, or `headphones-level`.
 
 ## Workspace
 
