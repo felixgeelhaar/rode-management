@@ -1,6 +1,6 @@
 # Tier B — Official RØDECaster MIDI
 
-Status: **implemented against mock MIDI transport** (hardware port optional follow-up)
+Status: **mock transport default (CI)** · **hardware via `@julusian/midi` when env is set**
 
 ## Why this path exists
 
@@ -17,6 +17,8 @@ It is **Tier B**: useful console actions, not full mixer automation.
 | SMART Pad trigger | CC 35 per pad channel | Host → device |
 | Record | CC 17, channel 1 | Bidirectional |
 
+Official RØDE MIDI uses **value `1` press pulses** (often followed by `0`). Hardware mode enables `pulseToggle` so outbound mute/listen/record send `1`, inbound `1` toggles, and inbound `0` is ignored.
+
 ## Explicitly unsupported over official MIDI
 
 - Fader / channel **Level**
@@ -30,15 +32,30 @@ Those remain on the Duo **simulator** (`RodecasterDuoSimAdapter`) or future prop
 | Piece | Role |
 |-------|------|
 | `midi-map.ts` | Official CC map + support matrix |
-| `midi-transport.ts` | `MidiTransport` + `MockMidiTransport` |
+| `midi-transport.ts` | `MidiTransport` + `MockMidiTransport` + `createHardwareMidiTransport()` |
+| `midi-port.ts` | Port name matching + CC encode/decode |
+| `node-midi-transport.ts` | OS MIDI via `@julusian/midi` |
 | `RodecasterDuoMidiAdapter` | Capability adapter over the transport |
 | `demo:midi` | Mute / pad / record smoke demo without hardware |
 
-## Stream Deck
+## Stream Deck / CLI
 
 ```bash
+# Mock MIDI (default — no hardware, CI-safe)
 RODE_CONTROL_ADAPTER=rodecaster-midi
+
+# Real Duo / Pro II MIDI Function port
+RODE_CONTROL_ADAPTER=rodecaster-midi
+RODE_CONTROL_MIDI_HARDWARE=1
+# Optional: narrow the OS port name
+RODE_CONTROL_MIDI_PORT="RØDECaster"
+# Optional: Pro II strip/pad counts
+RODE_CONTROL_MIDI_MODEL=pro-ii
+# Optional: virtual loopback when no console is present (dev only)
+RODE_CONTROL_MIDI_VIRTUAL=1
 ```
+
+Setting `RODE_CONTROL_MIDI_PORT` alone also enables hardware (substring match, then RØDE port-name hints).
 
 | Action | Behavior in MIDI mode |
 |--------|------------------------|
@@ -50,7 +67,3 @@ RODE_CONTROL_ADAPTER=rodecaster-midi
 | Channel Level dial | Surfaces **`N/A`** (Level not on official MIDI — not OFFLINE) |
 
 Stable bindings: `my-mic-gain` (Mute), `mic-mute`, `game-listen`, `pad-1`, `record`.
-
-## Hardware next step
-
-Implement a real `MidiTransport` (node-midi / Web MIDI / OS MIDI) that opens the RØDECaster MIDI Function port and pass it into `RodecasterDuoMidiAdapter({ transport })`. The mock transport stays the default for CI.

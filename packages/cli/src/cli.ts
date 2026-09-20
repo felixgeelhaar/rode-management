@@ -29,6 +29,8 @@ function usage(): never {
 Env:
   RODE_CONTROL_ADAPTER=sim|rodecaster|rodecaster-midi|topology|none
   RODE_CONTROL_BINDINGS_PATH=./layout.json
+  RODE_CONTROL_MIDI_HARDWARE=1  RODE_CONTROL_MIDI_PORT=<name>
+  RODE_CONTROL_MIDI_MODEL=duo|pro-ii  RODE_CONTROL_MIDI_VIRTUAL=1
 `);
   process.exit(1);
 }

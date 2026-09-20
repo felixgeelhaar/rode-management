@@ -30,11 +30,17 @@ export interface RodecasterDuoMidiOptions {
   model?: RodecasterModel;
   /**
    * Inject a transport. Defaults to {@link MockMidiTransport} so CI/dev work
-   * without hardware. Pass a real MIDI backend for a physical Duo / Pro II.
+   * without hardware. Pass {@link NodeMidiTransport} for a physical Duo / Pro II.
    */
   transport?: MidiTransport;
   /** When using the default mock, echo outbound CCs as inbound. */
   echoMockTraffic?: boolean;
+  /**
+   * RØDE official MIDI uses value `1` as a press/toggle pulse (often followed by `0`).
+   * When true: outbound mute/listen/record send value 1; inbound value 1 toggles;
+   * inbound value 0 is ignored. Default false (absolute) for the mock transport.
+   */
+  pulseToggle?: boolean;
 }
 
 interface StripState {
@@ -58,6 +64,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   private readonly serial: string;
   private readonly map: RodecasterMidiMap;
   private readonly transport: MidiTransport;
+  private readonly pulseToggle: boolean;
 
   private started = false;
   private online = false;
@@ -88,6 +95,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
         "Mock RØDECaster MIDI",
         options.echoMockTraffic ?? true,
       );
+    this.pulseToggle = options.pulseToggle ?? false;
     this.strips = Array.from({ length: this.map.channelCount }, () => ({
       muted: false,
       listening: false,
@@ -199,8 +207,21 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   }
 
   /** Simulate a physical mute press on the console. */
-  simulatePhysicalMute(stripIndex: number, muted: boolean): void {
+  simulatePhysicalMute(stripIndex: number, muted?: boolean): void {
     const address = muteAddress(stripIndex);
+    if (this.pulseToggle) {
+      const message: MidiControlChange = {
+        channel: address.channel,
+        controller: address.controller,
+        value: 1,
+      };
+      if (this.transport instanceof MockMidiTransport) {
+        this.transport.injectIncoming(message);
+        return;
+      }
+      this.handleIncoming(message);
+      return;
+    }
     const message: MidiControlChange = {
       channel: address.channel,
       controller: address.controller,
@@ -223,7 +244,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       this.transport.sendControlChange({
         channel: address.channel,
         controller: address.controller,
-        value: value ? 1 : 0,
+        value: this.pulseToggle ? 1 : value ? 1 : 0,
       });
       return;
     }
@@ -267,7 +288,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       this.transport.sendControlChange({
         channel: address.channel,
         controller: address.controller,
-        value: value ? 1 : 0,
+        value: this.pulseToggle ? 1 : value ? 1 : 0,
       });
       return;
     }
@@ -277,7 +298,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     this.transport.sendControlChange({
       channel: address.channel,
       controller: address.controller,
-      value: value ? 1 : 0,
+      value: this.pulseToggle ? 1 : value ? 1 : 0,
     });
   }
 
@@ -287,6 +308,42 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     }
 
     const { controller, channel, value } = message;
+
+    if (this.pulseToggle) {
+      if (value === 0) {
+        return;
+      }
+      if (controller === this.map.cc.record && channel === 1) {
+        this.recording = !this.recording;
+        this.emitState("recording", this.stateFor("recording", "hardware")!);
+        return;
+      }
+      if (
+        controller === this.map.cc.mute &&
+        channel >= 1 &&
+        channel <= this.map.channelCount
+      ) {
+        const strip = this.strips[channel - 1];
+        if (!strip) return;
+        strip.muted = !strip.muted;
+        const capabilityId = `ch-${channel}:mute`;
+        this.emitState(capabilityId, this.stateFor(capabilityId, "hardware")!);
+        return;
+      }
+      if (
+        controller === this.map.cc.listen &&
+        channel >= 1 &&
+        channel <= this.map.channelCount
+      ) {
+        const strip = this.strips[channel - 1];
+        if (!strip) return;
+        strip.listening = !strip.listening;
+        const capabilityId = `ch-${channel}:listen`;
+        this.emitState(capabilityId, this.stateFor(capabilityId, "hardware")!);
+      }
+      return;
+    }
+
     const active = value > 0;
 
     if (controller === this.map.cc.record && channel === 1) {

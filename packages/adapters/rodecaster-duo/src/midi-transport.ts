@@ -93,13 +93,14 @@ export class MockMidiTransport implements MidiTransport {
 /**
  * Placeholder for a future real MIDI backend (node-midi / Web MIDI).
  * Throws a clear error until a host package is wired and a port is selected.
+ * @deprecated Prefer {@link NodeMidiTransport} from `./node-midi-transport.js`.
  */
 export class UnconfiguredHardwareMidiTransport implements MidiTransport {
   readonly name = "Unconfigured hardware MIDI";
 
   async open(): Promise<void> {
     throw new Error(
-      "No hardware MIDI transport configured. Pass MockMidiTransport for tests, or implement a node-midi/Web MIDI backend and pass it to RodecasterDuoMidiAdapter.",
+      "No hardware MIDI transport configured. Use NodeMidiTransport / createHardwareMidiTransport(), or MockMidiTransport for tests.",
     );
   }
 
@@ -116,4 +117,17 @@ export class UnconfiguredHardwareMidiTransport implements MidiTransport {
   onControlChange(): () => void {
     return () => {};
   }
+}
+
+export type CreateHardwareMidiOptions = {
+  portName?: string;
+  allowVirtual?: boolean;
+};
+
+/** Factory for OS MIDI ports (lazy-loads `@julusian/midi`). */
+export async function createHardwareMidiTransport(
+  options: CreateHardwareMidiOptions = {},
+): Promise<MidiTransport> {
+  const { NodeMidiTransport } = await import("./node-midi-transport.js");
+  return new NodeMidiTransport(options);
 }

@@ -73,8 +73,13 @@ RODE_CONTROL_ADAPTER=sim
 # RØDECaster Duo mix simulator
 RODE_CONTROL_ADAPTER=rodecaster
 
-# Official MIDI Tier B (mock transport until a real port is wired)
+# Official MIDI Tier B (mock transport by default)
 RODE_CONTROL_ADAPTER=rodecaster-midi
+
+# Same mode + real Duo / Pro II MIDI Function port
+RODE_CONTROL_ADAPTER=rodecaster-midi
+RODE_CONTROL_MIDI_HARDWARE=1
+RODE_CONTROL_MIDI_PORT=RØDECaster
 
 # Dual-adapter topology (mixer-preferred Gain)
 RODE_CONTROL_ADAPTER=topology

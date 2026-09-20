@@ -35,6 +35,17 @@ describe("createCapabilityCore", () => {
     await core.stop();
   });
 
+  it("keeps mock MIDI when hardware is not requested", async () => {
+    const core = await createCapabilityCore({
+      mode: "rodecaster-midi",
+      midiHardware: false,
+    });
+    const device = core.listDevices()[0];
+    expect(device?.connection).toBe("midi");
+    expect(device?.metadata?.controlSurface).toBe("official-midi");
+    await core.stop();
+  });
+
   it("prefers mixer Gain in topology mode", async () => {
     const core = await createCapabilityCore({ mode: "topology" });
     const resolved = core.resolveBinding(MIC_GAIN_BINDING_ID);

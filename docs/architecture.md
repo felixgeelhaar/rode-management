@@ -37,7 +37,7 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 | 1 Vertical slice (dial ↔ gain, offline/reconnect) | Implemented against **simulator** |
 | 2 Capability depth | Monitor, mute, HPF, compressor on PodMic sim **and** Stream Deck (monitor dial + HPF/COMP keys) |
 | 3 RØDECaster validation | Duo simulator + mix bank + §43 ownership tests |
-| 3b Official MIDI (Tier B) | `RodecasterDuoMidiAdapter` + mock transport — mute/listen/pads/record ([midi-tier-b.md](./midi-tier-b.md)) |
+| 3b Official MIDI (Tier B) | `RodecasterDuoMidiAdapter` + mock or `NodeMidiTransport` — mute/listen/pads/record ([midi-tier-b.md](./midi-tier-b.md)) |
 | 4 Creator surface (software) | Listen, Tier honesty, topology, mic depth, binding profiles, property inspector |
 | 5 Second client (CLI) | `@rode-control/cli` + shared `@rode-control/host` bootstrap |
 | 5+ Ecosystem / workflows | Not started |
@@ -95,6 +95,7 @@ Property Inspector (`ui/property-inspector.html`) edits `bindingId` and dial `se
 Default runtime uses the PodMic simulator (`RODE_CONTROL_ADAPTER=sim`).  
 Set `RODE_CONTROL_ADAPTER=rodecaster` for the Duo mix-bank simulator.  
 Set `RODE_CONTROL_ADAPTER=rodecaster-midi` for official MIDI Tier B (mute/listen/pads/record; mock transport by default).  
+Set `RODE_CONTROL_MIDI_HARDWARE=1` and/or `RODE_CONTROL_MIDI_PORT=…` to open a real OS MIDI port (`NodeMidiTransport`, pulse-toggle semantics).  
 Set `RODE_CONTROL_ADAPTER=topology` for dual-adapter mixer-preferred ownership.
 
 ## Next hardware steps
@@ -103,4 +104,4 @@ Set `RODE_CONTROL_ADAPTER=topology` for dual-adapter mixer-preferred ownership.
 2. Implement a real `DeviceAdapter` behind the same interface.
 3. Re-run the Phase 1–2 checklist on physical PodMic USB + Stream Deck+.
 4. Validate RØDECaster Duo channel control on hardware and prove §43 ownership equivalence.
-5. Wire a real MIDI port into `RodecasterDuoMidiAdapter` and verify mute/listen/pads/record on Duo / Pro II.
+5. On a physical Duo / Pro II, verify mute/listen/pads/record with `RODE_CONTROL_MIDI_HARDWARE=1`.

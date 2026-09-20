@@ -111,4 +111,41 @@ describe("RodecasterDuoMidiAdapter", () => {
     });
     expect(result.ok).toBe(true);
   });
+
+  it("uses pulseToggle semantics for official RØDE MIDI presses", async () => {
+    const transport = new MockMidiTransport("pulse", false);
+    const adapter = new RodecasterDuoMidiAdapter({
+      transport,
+      pulseToggle: true,
+    });
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding(
+      createBinding("mic-mute", "MIC MUTE", "Mute", { sourceHint: "PodMic" }),
+    );
+
+    await core.execute({
+      type: "SetMute",
+      bindingId: "mic-mute",
+      value: true,
+    });
+    expect(transport.sent.at(-1)).toEqual(
+      expect.objectContaining({ value: 1 }),
+    );
+
+    // Absolute-style value 0 must not unmute in pulse mode.
+    transport.injectIncoming({
+      channel: muteAddress(0).channel,
+      controller: muteAddress(0).controller,
+      value: 0,
+    });
+    expect(core.getControlSurface("mic-mute").valueText).toBe("ON");
+
+    adapter.simulatePhysicalMute(0);
+    expect(core.getControlSurface("mic-mute").valueText).toBe("OFF");
+
+    adapter.simulatePhysicalMute(0);
+    expect(core.getControlSurface("mic-mute").valueText).toBe("ON");
+  });
 });

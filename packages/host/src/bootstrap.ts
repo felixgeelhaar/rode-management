@@ -8,8 +8,10 @@ import {
 } from "@rode-control/core";
 import { PodMicUsbSimAdapter } from "@rode-control/adapter-podmic-usb";
 import {
+  createHardwareMidiTransport,
   RodecasterDuoMidiAdapter,
   RodecasterDuoSimAdapter,
+  type RodecasterModel,
 } from "@rode-control/adapter-rodecaster-duo";
 
 export const MIC_GAIN_BINDING_ID = "my-mic-gain";
@@ -39,6 +41,20 @@ export interface BootstrapOptions {
   /** When set, write the binding profile after binding changes (debounced). */
   bindingsAutosavePath?: string;
   dialCoalesceMs?: number;
+  /**
+   * Prefer a MIDI port by name/substring when using hardware MIDI.
+   * Env: `RODE_CONTROL_MIDI_PORT`.
+   */
+  midiPort?: string;
+  /**
+   * Open OS MIDI instead of the mock transport.
+   * Env: `RODE_CONTROL_MIDI_HARDWARE=1`, or implied when `midiPort` / `RODE_CONTROL_MIDI_PORT` is set.
+   */
+  midiHardware?: boolean;
+  /** Open a virtual loopback when no hardware matches. Env: `RODE_CONTROL_MIDI_VIRTUAL=1`. */
+  midiVirtual?: boolean;
+  /** Duo (default) or Pro II channel/pad counts. Env: `RODE_CONTROL_MIDI_MODEL`. */
+  midiModel?: RodecasterModel;
 }
 
 let corePromise: Promise<CapabilityCore> | undefined;
@@ -51,6 +67,7 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   RODE_CONTROL_BINDINGS_PATH
  *   RODE_CONTROL_BINDINGS_REPLACE=1
  *   RODE_CONTROL_BINDINGS_AUTOSAVE
+ *   RODE_CONTROL_MIDI_PORT / RODE_CONTROL_MIDI_HARDWARE / RODE_CONTROL_MIDI_VIRTUAL / RODE_CONTROL_MIDI_MODEL
  */
 export async function createCapabilityCore(
   options: BootstrapOptions = {},
@@ -83,7 +100,7 @@ export async function createCapabilityCore(
   } else if (mode === "rodecaster") {
     core.registerAdapter(new RodecasterDuoSimAdapter());
   } else if (mode === "rodecaster-midi") {
-    core.registerAdapter(new RodecasterDuoMidiAdapter());
+    core.registerAdapter(await createRodecasterMidiAdapter(options));
   } else if (mode === "topology") {
     core.registerAdapter(
       new PodMicUsbSimAdapter({
@@ -151,6 +168,43 @@ export async function getCapabilityCore(): Promise<CapabilityCore> {
 /** Test helper — drop the singleton between cases. */
 export function resetCapabilityCoreSingleton(): void {
   corePromise = undefined;
+}
+
+async function createRodecasterMidiAdapter(
+  options: BootstrapOptions,
+): Promise<RodecasterDuoMidiAdapter> {
+  const midiPort =
+    options.midiPort ?? process.env.RODE_CONTROL_MIDI_PORT ?? undefined;
+  const midiHardware =
+    options.midiHardware ??
+    (process.env.RODE_CONTROL_MIDI_HARDWARE === "1" || Boolean(midiPort));
+  const midiVirtual =
+    options.midiVirtual ?? process.env.RODE_CONTROL_MIDI_VIRTUAL === "1";
+  const midiModel = resolveMidiModel(
+    options.midiModel ?? process.env.RODE_CONTROL_MIDI_MODEL,
+  );
+
+  if (!midiHardware) {
+    return new RodecasterDuoMidiAdapter({ model: midiModel });
+  }
+
+  const transport = await createHardwareMidiTransport({
+    ...(midiPort !== undefined ? { portName: midiPort } : {}),
+    allowVirtual: midiVirtual,
+  });
+  return new RodecasterDuoMidiAdapter({
+    transport,
+    model: midiModel,
+    // Official RØDE MIDI uses value-1 press pulses (not absolute 0/1).
+    pulseToggle: true,
+  });
+}
+
+function resolveMidiModel(raw: string | RodecasterModel | undefined): RodecasterModel {
+  if (raw === "pro-ii" || raw === "proii" || raw === "pro2") {
+    return "pro-ii";
+  }
+  return "duo";
 }
 
 function seedTopology(core: CapabilityCore): void {
