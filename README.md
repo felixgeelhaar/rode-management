@@ -28,6 +28,7 @@ npm run demo:topology
 npm run demo:bindings
 npm run cli -- status
 RODE_CONTROL_ADAPTER=rodecaster npm run cli -- surface headphones-level
+npm run e2e
 npm run build
 ```
 

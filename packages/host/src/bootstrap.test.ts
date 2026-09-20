@@ -84,12 +84,11 @@ describe("createCapabilityCore", () => {
       capabilityType: "Mute",
       sourceHint: "PodMic",
     });
-    await new Promise((r) => setTimeout(r, 350));
+    await core.stop();
     const saved = JSON.parse(await readFile(path, "utf8")) as {
       bindings: Array<{ id: string }>;
     };
     expect(saved.bindings.some((b) => b.id === "extra-mute")).toBe(true);
-    await core.stop();
   });
 
   it("loads workflow overrides from disk after built-ins", async () => {
@@ -122,12 +121,11 @@ describe("createCapabilityCore", () => {
       workflowsAutosavePath: path,
     });
     core.captureWorkflow("custom", "Custom");
-    await new Promise((r) => setTimeout(r, 350));
+    await core.stop();
     const saved = JSON.parse(await readFile(path, "utf8")) as {
       workflows: Array<{ id: string }>;
     };
     expect(saved.workflows.some((w) => w.id === "custom")).toBe(true);
     expect(saved.workflows.some((w) => w.id === "streaming")).toBe(true);
-    await core.stop();
   });
 });

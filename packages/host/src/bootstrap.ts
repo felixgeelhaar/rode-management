@@ -155,10 +155,21 @@ function attachAutosave(
   mode: AdapterMode,
 ): void {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (!dirty) return;
+    dirty = false;
+    await writeFile(path, core.exportProfileJson(mode), "utf8");
+  };
   const schedule = () => {
+    dirty = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      void writeFile(path, core.exportProfileJson(mode), "utf8");
+      void flush();
     }, 250);
   };
   core.subscribe((event) => {
@@ -169,14 +180,26 @@ function attachAutosave(
       schedule();
     }
   });
+  wrapStop(core, flush);
 }
 
 function attachWorkflowAutosave(core: CapabilityCore, path: string): void {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (!dirty) return;
+    dirty = false;
+    await writeFile(path, core.exportWorkflowsJson(), "utf8");
+  };
   const schedule = () => {
+    dirty = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      void writeFile(path, core.exportWorkflowsJson(), "utf8");
+      void flush();
     }, 250);
   };
   core.subscribe((event) => {
@@ -184,6 +207,15 @@ function attachWorkflowAutosave(core: CapabilityCore, path: string): void {
       schedule();
     }
   });
+  wrapStop(core, flush);
+}
+
+function wrapStop(core: CapabilityCore, flush: () => Promise<void>): void {
+  const original = core.stop.bind(core);
+  core.stop = async () => {
+    await flush();
+    await original();
+  };
 }
 
 /** Process-wide singleton used by the Stream Deck plugin. */
