@@ -1,0 +1,29 @@
+{
+  "name": "@rode-control/host",
+  "version": "0.1.0",
+  "description": "Shared capability-core bootstrap for Stream Deck plugin, CLI, and tests",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rode-control/adapter-podmic-usb": "0.1.0",
+    "@rode-control/adapter-rodecaster-duo": "0.1.0",
+    "@rode-control/core": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

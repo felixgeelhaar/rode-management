@@ -1,8 +1,6 @@
-/**
- * Stream Deck plugin host — re-exports the shared runtime bootstrap.
- */
 export {
   CHAT_LEVEL_BINDING_ID,
+  createCapabilityCore,
   GAME_LEVEL_BINDING_ID,
   GAME_LISTEN_BINDING_ID,
   getCapabilityCore,
@@ -15,4 +13,6 @@ export {
   MUSIC_LEVEL_BINDING_ID,
   PAD_1_BINDING_ID,
   RECORD_BINDING_ID,
-} from "@rode-control/host";
+  resetCapabilityCoreSingleton,
+} from "./bootstrap.js";
+export type { AdapterMode, BootstrapOptions } from "./bootstrap.js";

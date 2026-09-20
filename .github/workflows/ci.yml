@@ -25,3 +25,6 @@ jobs:
       - run: npm run demo:midi
       - run: npm run demo:topology
       - run: npm run demo:bindings
+      - run: npm run cli -- status
+      - run: RODE_CONTROL_ADAPTER=rodecaster npm run cli -- surface headphones-level
+      - run: RODE_CONTROL_ADAPTER=rodecaster npm run cli -- exec AdjustLevel headphones-level --delta 5

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "exportedAt": "2026-09-20T00:00:00.000Z",
+  "adapterHint": "rodecaster",
+  "bindings": [
+    {
+      "id": "my-mic-gain",
+      "label": "MIC",
+      "capabilityType": "Gain",
+      "sourceHint": "PodMic"
+    },
+    {
+      "id": "game-level",
+      "label": "GAME",
+      "capabilityType": "Level",
+      "sourceHint": "Game"
+    },
+    {
+      "id": "chat-level",
+      "label": "CHAT",
+      "capabilityType": "Level",
+      "sourceHint": "Discord"
+    },
+    {
+      "id": "music-level",
+      "label": "MUSIC",
+      "capabilityType": "Level",
+      "sourceHint": "Music"
+    },
+    {
+      "id": "headphones-level",
+      "label": "HP",
+      "capabilityType": "Level",
+      "sourceHint": "Headphones"
+    }
+  ]
+}

@@ -11,9 +11,8 @@
   },
   "dependencies": {
     "@elgato/streamdeck": "^2.1.2",
-    "@rode-control/adapter-podmic-usb": "0.1.0",
-    "@rode-control/adapter-rodecaster-duo": "0.1.0",
-    "@rode-control/core": "0.1.0"
+    "@rode-control/core": "0.1.0",
+    "@rode-control/host": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
