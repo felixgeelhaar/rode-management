@@ -11,11 +11,17 @@ import type {
   Endpoint,
   LogicalBinding,
   ResolvedCapability,
+  Topology,
 } from "./types.js";
 
 export interface CapabilityCoreOptions {
   /** When true, missing devices keep bindings configured but mark them offline. */
   retainOfflineBindings?: boolean;
+  /**
+   * Prefer mixer-owned capabilities when multiple adapters expose the same
+   * logical control (RØDECaster-centered topologies). Default true.
+   */
+  preferMixerOwnership?: boolean;
 }
 
 /**
@@ -30,10 +36,25 @@ export class CapabilityCore {
   private readonly listeners = new Set<CoreEventListener>();
   private readonly unsubscribers: Array<() => void> = [];
   private readonly options: Required<CapabilityCoreOptions>;
+  private topology: Topology = { edges: [] };
 
   constructor(options: CapabilityCoreOptions = {}) {
     this.options = {
       retainOfflineBindings: options.retainOfflineBindings ?? true,
+      preferMixerOwnership: options.preferMixerOwnership ?? true,
+    };
+  }
+
+  /** Declare topology edges used for ownership ranking (e.g. USB mic feeds mixer input). */
+  setTopology(topology: Topology): void {
+    this.topology = {
+      edges: topology.edges.map((edge) => ({ ...edge })),
+    };
+  }
+
+  getTopology(): Topology {
+    return {
+      edges: this.topology.edges.map((edge) => ({ ...edge })),
     };
   }
 
@@ -244,18 +265,38 @@ export class CapabilityCore {
     }
 
     const resolved = this.resolveBinding(bindingId);
-    if (!resolved || resolved.state.availability === "offline") {
+    if (resolved) {
+      if (resolved.state.availability === "offline") {
+        return {
+          label: binding.label,
+          valueText: "OFFLINE",
+          availability: "offline",
+        };
+      }
       return {
         label: binding.label,
-        valueText: "OFFLINE",
-        availability: "offline",
+        valueText: formatCapabilityValue(
+          resolved.capability,
+          resolved.state.value,
+        ),
+        availability: resolved.state.availability,
+      };
+    }
+
+    // Unresolved: distinguish "device gone" from "tier doesn't offer this".
+    const diagnosis = this.diagnoseUnresolved(binding);
+    if (diagnosis === "unsupported") {
+      return {
+        label: binding.label,
+        valueText: "N/A",
+        availability: "unsupported",
       };
     }
 
     return {
       label: binding.label,
-      valueText: formatCapabilityValue(resolved.capability, resolved.state.value),
-      availability: resolved.state.availability,
+      valueText: "OFFLINE",
+      availability: "offline",
     };
   }
 
@@ -433,12 +474,76 @@ export class CapabilityCore {
       if (onlineScore !== 0) {
         return onlineScore;
       }
+
+      const ownership =
+        this.ownershipScore(b, binding) - this.ownershipScore(a, binding);
+      if (ownership !== 0) {
+        return ownership;
+      }
+
       const aLabel =
         a.endpoint.label.toLowerCase() === binding.label.toLowerCase() ? 1 : 0;
       const bLabel =
         b.endpoint.label.toLowerCase() === binding.label.toLowerCase() ? 1 : 0;
       return bLabel - aLabel;
     });
+  }
+
+  /**
+   * Rank competing owners for the same logical binding.
+   * Mixer-fed channel endpoints beat USB mic endpoints when preferred.
+   */
+  private ownershipScore(
+    candidate: {
+      device: Device;
+      endpoint: Endpoint;
+      capability: CapabilityDescriptor;
+    },
+    binding: LogicalBinding,
+  ): number {
+    let score = 0;
+
+    if (this.options.preferMixerOwnership) {
+      if (candidate.device.family === "rodecaster") {
+        score += 20;
+      }
+      if (
+        (binding.capabilityType === "Gain" ||
+          binding.capabilityType === "Mute" ||
+          binding.capabilityType === "Level") &&
+        candidate.endpoint.kind === "channel"
+      ) {
+        score += 10;
+      }
+      if (candidate.endpoint.kind === "microphone") {
+        score += 4;
+      }
+    }
+
+    // Topology: prefer the "owns" / downstream side of a feeds edge.
+    for (const edge of this.topology.edges) {
+      if (edge.relation === "feeds" && edge.to === candidate.endpoint.id) {
+        score += 15;
+      }
+      if (edge.relation === "owns" && edge.from === candidate.endpoint.id) {
+        score += 15;
+      }
+    }
+
+    return score;
+  }
+
+  /**
+   * When a binding does not resolve: offline (no live devices) vs unsupported
+   * (live devices present but none expose a matching capability / filters).
+   */
+  private diagnoseUnresolved(
+    _binding: LogicalBinding,
+  ): "offline" | "unsupported" {
+    const onlineDevices = [...this.devices.values()].filter(
+      (device) => device.status === "online",
+    );
+    return onlineDevices.length === 0 ? "offline" : "unsupported";
   }
 
   private commandToValue(

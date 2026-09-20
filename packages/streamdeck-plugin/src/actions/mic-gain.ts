@@ -17,9 +17,9 @@ type MicGainSettings = {
 /**
  * Stream Deck+ dial for logical "My Mic" / Gain.
  *
- * Rotate → AdjustGain
- * Press  → ToggleMute (same-endpoint retarget)
- * Display → live authoritative state / OFFLINE
+ * Rotate → AdjustGain (or mute-only hint in MIDI mode)
+ * Press  → ToggleMute (same-endpoint retarget, or Mute binding itself)
+ * Display → live authoritative state / MUTED / OFFLINE / N/A
  */
 @action({ UUID: "com.felixgeelhaar.rode-control.mic-gain" })
 export class MicGainDialAction extends SingletonAction<MicGainSettings> {
@@ -125,16 +125,22 @@ export class MicGainDialAction extends SingletonAction<MicGainSettings> {
 
     const core = await getCapabilityCore();
     const surface = core.getControlSurface(bindingId);
-    const muted = this.isMuted(core, bindingId);
+    const resolved = core.resolveBinding(bindingId);
+
+    let value = surface.valueText;
+    if (surface.availability === "offline") {
+      value = "OFFLINE";
+    } else if (surface.availability === "unsupported") {
+      value = "N/A";
+    } else if (resolved?.capability.type === "Mute") {
+      value = surface.valueText.toUpperCase() === "ON" ? "MUTED" : "LIVE";
+    } else if (this.isMuted(core, bindingId)) {
+      value = `MUTE ${surface.valueText}`;
+    }
 
     await actionRef.setFeedback({
       title: surface.label,
-      value:
-        surface.availability === "offline"
-          ? "OFFLINE"
-          : muted
-            ? `MUTE ${surface.valueText}`
-            : surface.valueText,
+      value,
     });
   }
 

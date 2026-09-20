@@ -20,6 +20,8 @@ const targets = [
   "imgs/actions/channel-level/key.png",
   "imgs/actions/mute-toggle/icon.png",
   "imgs/actions/mute-toggle/key.png",
+  "imgs/actions/listen-toggle/icon.png",
+  "imgs/actions/listen-toggle/key.png",
   "imgs/actions/pad-trigger/icon.png",
   "imgs/actions/pad-trigger/key.png",
   "imgs/actions/record-toggle/icon.png",

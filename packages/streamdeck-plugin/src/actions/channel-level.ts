@@ -1,5 +1,6 @@
 import {
   action,
+  DialDownEvent,
   DialRotateEvent,
   SingletonAction,
   WillAppearEvent,
@@ -22,7 +23,8 @@ type LevelSettings = {
  * Generic Stream Deck+ level dial for mix sources (Game / Chat / Music / …).
  *
  * Rotate → AdjustLevel
- * Display → live level / OFFLINE
+ * Press  → ToggleMute (same-endpoint retarget when Mute exists)
+ * Display → live level / OFFLINE / N/A
  */
 @action({ UUID: "com.felixgeelhaar.rode-control.channel-level" })
 export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
@@ -36,7 +38,10 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
     const unsubscribe = core.subscribe((event) => {
       if (
         (event.type === "state-changed" &&
-          event.resolved.binding.id === bindingId) ||
+          (event.resolved.binding.id === bindingId ||
+            (event.resolved.capability.type === "Mute" &&
+              event.resolved.endpoint.id ===
+                core.resolveBinding(bindingId)?.endpoint.id))) ||
         (event.type === "binding-offline" && event.bindingId === bindingId) ||
         (event.type === "binding-online" && event.bindingId === bindingId)
       ) {
@@ -60,6 +65,14 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
     const bindingId = this.resolveBindingId(ev.payload.settings);
     const sensitivity = ev.payload.settings.sensitivity ?? 1;
 
+    const surface = core.getControlSurface(bindingId);
+    if (surface.availability === "unsupported") {
+      if (ev.action.isDial()) {
+        await ev.action.setFeedback({ title: surface.label, value: "N/A" });
+      }
+      return;
+    }
+
     const result = await core.execute({
       type: "AdjustLevel",
       bindingId,
@@ -79,6 +92,20 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
     await this.render(ev.action, bindingId);
   }
 
+  override async onDialDown(ev: DialDownEvent<LevelSettings>): Promise<void> {
+    const core = await getCapabilityCore();
+    const bindingId = this.resolveBindingId(ev.payload.settings);
+    const result = await core.execute({ type: "ToggleMute", bindingId });
+    if (!result.ok && ev.action.isDial()) {
+      await ev.action.setFeedback({
+        title: "LVL",
+        value: result.error ?? "ERR",
+      });
+      return;
+    }
+    await this.render(ev.action, bindingId);
+  }
+
   private resolveBindingId(settings: LevelSettings): string {
     return settings.bindingId ?? GAME_LEVEL_BINDING_ID;
   }
@@ -92,9 +119,18 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
     }
     const core = await getCapabilityCore();
     const surface = core.getControlSurface(bindingId);
+    const muted = core.getSiblingState(bindingId, "Mute")?.value === true;
+    let value = surface.valueText;
+    if (surface.availability === "offline") {
+      value = "OFFLINE";
+    } else if (surface.availability === "unsupported") {
+      value = "N/A";
+    } else if (muted) {
+      value = `MUTE ${surface.valueText}`;
+    }
     await actionRef.setFeedback({
       title: surface.label,
-      value: surface.valueText,
+      value,
     });
   }
 }

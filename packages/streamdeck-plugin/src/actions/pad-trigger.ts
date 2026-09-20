@@ -17,6 +17,7 @@ type PadSettings = {
 @action({ UUID: "com.felixgeelhaar.rode-control.pad-trigger" })
 export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
   private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly flashTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   override async onWillAppear(ev: WillAppearEvent<PadSettings>): Promise<void> {
     const bindingId = ev.payload.settings.bindingId ?? PAD_1_BINDING_ID;
@@ -39,6 +40,7 @@ export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
   override async onWillDisappear(
     ev: WillDisappearEvent<PadSettings>,
   ): Promise<void> {
+    this.clearFlash(ev.action.id);
     this.feedbackUnsubscribers.get(ev.action.id)?.();
     this.feedbackUnsubscribers.delete(ev.action.id);
   }
@@ -51,8 +53,24 @@ export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
       await ev.action.setTitle(result.error ?? "ERR");
       return;
     }
+
+    this.clearFlash(ev.action.id);
     await ev.action.setTitle("FIRE");
-    await this.render(ev.action, bindingId);
+    this.flashTimers.set(
+      ev.action.id,
+      setTimeout(() => {
+        this.flashTimers.delete(ev.action.id);
+        void this.render(ev.action, bindingId);
+      }, 250),
+    );
+  }
+
+  private clearFlash(actionId: string): void {
+    const timer = this.flashTimers.get(actionId);
+    if (timer) {
+      clearTimeout(timer);
+      this.flashTimers.delete(actionId);
+    }
   }
 
   private async render(
@@ -63,6 +81,10 @@ export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
     const surface = core.getControlSurface(bindingId);
     if (surface.availability === "offline") {
       await actionRef.setTitle("OFFLINE");
+      return;
+    }
+    if (surface.availability === "unsupported") {
+      await actionRef.setTitle("N/A");
       return;
     }
     await actionRef.setTitle(surface.label);

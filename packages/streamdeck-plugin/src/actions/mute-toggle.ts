@@ -66,6 +66,10 @@ export class MuteToggleKeyAction extends SingletonAction<MuteSettings> {
       await actionRef.setTitle("OFFLINE");
       return;
     }
+    if (surface.availability === "unsupported") {
+      await actionRef.setTitle("N/A");
+      return;
+    }
     const muted = surface.valueText.toUpperCase() === "ON";
     await actionRef.setTitle(muted ? "MUTED" : surface.label);
   }

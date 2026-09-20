@@ -5,23 +5,23 @@ import {
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
-import { getCapabilityCore, RECORD_BINDING_ID } from "../core-host.js";
+import { GAME_LISTEN_BINDING_ID, getCapabilityCore } from "../core-host.js";
 
-type RecordSettings = {
+type ListenSettings = {
   bindingId?: string;
 };
 
 /**
- * Key action: start/stop recording on a Recording binding (official MIDI Tier B).
+ * Key action: toggle Listen/solo on a channel (official MIDI Tier B).
  */
-@action({ UUID: "com.felixgeelhaar.rode-control.record-toggle" })
-export class RecordToggleKeyAction extends SingletonAction<RecordSettings> {
+@action({ UUID: "com.felixgeelhaar.rode-control.listen-toggle" })
+export class ListenToggleKeyAction extends SingletonAction<ListenSettings> {
   private readonly feedbackUnsubscribers = new Map<string, () => void>();
 
   override async onWillAppear(
-    ev: WillAppearEvent<RecordSettings>,
+    ev: WillAppearEvent<ListenSettings>,
   ): Promise<void> {
-    const bindingId = ev.payload.settings.bindingId ?? RECORD_BINDING_ID;
+    const bindingId = ev.payload.settings.bindingId ?? GAME_LISTEN_BINDING_ID;
     this.feedbackUnsubscribers.get(ev.action.id)?.();
 
     const core = await getCapabilityCore();
@@ -41,22 +41,16 @@ export class RecordToggleKeyAction extends SingletonAction<RecordSettings> {
   }
 
   override async onWillDisappear(
-    ev: WillDisappearEvent<RecordSettings>,
+    ev: WillDisappearEvent<ListenSettings>,
   ): Promise<void> {
     this.feedbackUnsubscribers.get(ev.action.id)?.();
     this.feedbackUnsubscribers.delete(ev.action.id);
   }
 
-  override async onKeyDown(ev: KeyDownEvent<RecordSettings>): Promise<void> {
+  override async onKeyDown(ev: KeyDownEvent<ListenSettings>): Promise<void> {
     const core = await getCapabilityCore();
-    const bindingId = ev.payload.settings.bindingId ?? RECORD_BINDING_ID;
-    const resolved = core.resolveBinding(bindingId);
-    const recording = resolved?.state.value === true;
-    const result = await core.execute(
-      recording
-        ? { type: "StopRecording", bindingId }
-        : { type: "StartRecording", bindingId },
-    );
+    const bindingId = ev.payload.settings.bindingId ?? GAME_LISTEN_BINDING_ID;
+    const result = await core.execute({ type: "ToggleListen", bindingId });
     if (!result.ok) {
       await ev.action.setTitle(result.error ?? "ERR");
       return;
@@ -65,7 +59,7 @@ export class RecordToggleKeyAction extends SingletonAction<RecordSettings> {
   }
 
   private async render(
-    actionRef: WillAppearEvent<RecordSettings>["action"],
+    actionRef: WillAppearEvent<ListenSettings>["action"],
     bindingId: string,
   ): Promise<void> {
     const core = await getCapabilityCore();
@@ -78,7 +72,7 @@ export class RecordToggleKeyAction extends SingletonAction<RecordSettings> {
       await actionRef.setTitle("N/A");
       return;
     }
-    const recording = surface.valueText.toUpperCase() === "ON";
-    await actionRef.setTitle(recording ? "REC ●" : "REC");
+    const listening = surface.valueText.toUpperCase() === "ON";
+    await actionRef.setTitle(listening ? "LISTEN ●" : surface.label);
   }
 }
