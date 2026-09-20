@@ -567,6 +567,8 @@ export class CapabilityCore {
         return !(resolved.state.value === true);
       case "SetProcessing":
         return command.value;
+      case "ToggleProcessing":
+        return !(resolved.state.value === true);
       case "TriggerPad":
         return true;
       case "StartRecording":
@@ -622,6 +624,7 @@ export class CapabilityCore {
       case "ToggleListen":
         return "Listen";
       case "SetProcessing":
+      case "ToggleProcessing":
         return command.capabilityType;
       case "SetGain":
       case "AdjustGain":
@@ -820,6 +823,30 @@ export function suggestCreatorBindings(devices: Device[]): SuggestedBinding[] {
           bank: "mic",
           role: "monitor",
           binding: createBinding(`${endpoint.id}:monitor`, "MONITOR", "Monitoring", {
+            deviceId: device.id,
+            endpointId: endpoint.id,
+          }),
+        });
+      }
+
+      const hpf = endpoint.capabilities.find((c) => c.type === "HighPassFilter");
+      if (isMic && hpf) {
+        suggestions.push({
+          bank: "mic",
+          role: "high-pass",
+          binding: createBinding(`${endpoint.id}:hpf`, "HPF", "HighPassFilter", {
+            deviceId: device.id,
+            endpointId: endpoint.id,
+          }),
+        });
+      }
+
+      const compression = endpoint.capabilities.find((c) => c.type === "Compression");
+      if (isMic && compression) {
+        suggestions.push({
+          bank: "mic",
+          role: "compressor",
+          binding: createBinding(`${endpoint.id}:comp`, "COMP", "Compression", {
             deviceId: device.id,
             endpointId: endpoint.id,
           }),

@@ -13,6 +13,8 @@ import {
 
 export const MIC_GAIN_BINDING_ID = "my-mic-gain";
 export const MIC_MONITOR_BINDING_ID = "my-mic-monitor";
+export const MIC_HPF_BINDING_ID = "my-mic-hpf";
+export const MIC_COMP_BINDING_ID = "my-mic-comp";
 export const GAME_LEVEL_BINDING_ID = "game-level";
 export const CHAT_LEVEL_BINDING_ID = "chat-level";
 export const MUSIC_LEVEL_BINDING_ID = "music-level";
@@ -96,11 +98,7 @@ function seedTopology(core: CapabilityCore): void {
   }
 
   seedRodecasterBindings(core);
-  core.upsertBinding(
-    createBinding(MIC_MONITOR_BINDING_ID, "MONITOR", "Monitoring", {
-      sourceHint: "PodMic",
-    }),
-  );
+  seedMicProcessingBindings(core);
 }
 
 function seedPodMicBindings(core: CapabilityCore): void {
@@ -111,8 +109,22 @@ function seedPodMicBindings(core: CapabilityCore): void {
       sourceHint: "PodMic",
     }),
   );
+  seedMicProcessingBindings(core);
+}
+
+function seedMicProcessingBindings(core: CapabilityCore): void {
   core.upsertBinding(
     createBinding(MIC_MONITOR_BINDING_ID, "MONITOR", "Monitoring", {
+      sourceHint: "PodMic",
+    }),
+  );
+  core.upsertBinding(
+    createBinding(MIC_HPF_BINDING_ID, "HPF", "HighPassFilter", {
+      sourceHint: "PodMic",
+    }),
+  );
+  core.upsertBinding(
+    createBinding(MIC_COMP_BINDING_ID, "COMP", "Compression", {
       sourceHint: "PodMic",
     }),
   );

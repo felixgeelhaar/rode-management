@@ -32,7 +32,7 @@ npm run build
 
 ```text
 discover → show gain → dial adjust → external change → disconnect OFFLINE → reconnect
-+ monitor / mute / HPF / compressor (Phase 2)
++ monitor dial / mute / HPF / compressor keys (Phase 2 on Stream Deck)
 ```
 
 ### RØDECaster mix bank (no hardware)

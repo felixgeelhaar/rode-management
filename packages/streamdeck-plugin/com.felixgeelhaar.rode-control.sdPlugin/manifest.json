@@ -2,12 +2,12 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "RØDE Control",
-  "Version": "0.4.0.0",
+  "Version": "0.5.0.0",
   "Author": "Felix Geelhaar",
   "Category": "RØDE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Dial gain/levels, mute/listen, SMART pads, and record — with honest Tier B MIDI and dual-adapter topology.",
+  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Mic gain/monitor/DSP, mix levels, mute/listen, SMART pads, and record — with honest Tier B MIDI and dual-adapter topology.",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -45,6 +45,28 @@
       "States": [
         {
           "Image": "imgs/actions/mic-gain/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.mic-monitor",
+      "Name": "Mic Monitor",
+      "Icon": "imgs/actions/mic-monitor/icon",
+      "Tooltip": "Adjust PodMic USB monitor / headphone cue level",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust monitor level",
+          "Push": "Reserved",
+          "Touch": "Show monitor controls (future)"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/mic-monitor/key",
           "TitleAlignment": "middle",
           "FontSize": 12
         }
@@ -99,6 +121,36 @@
           "TitleAlignment": "middle",
           "FontSize": 12,
           "Title": "LISTEN"
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.hpf-toggle",
+      "Name": "High-Pass",
+      "Icon": "imgs/actions/hpf-toggle/icon",
+      "Tooltip": "Toggle mic high-pass filter (PodMic sim / when hardware exposes it)",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/hpf-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "HPF"
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.compressor-toggle",
+      "Name": "Compressor",
+      "Icon": "imgs/actions/compressor-toggle/icon",
+      "Tooltip": "Toggle mic compressor (PodMic sim / when hardware exposes it)",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/compressor-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "COMP"
         }
       ]
     },

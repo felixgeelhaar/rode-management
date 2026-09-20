@@ -33,7 +33,7 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 |-------|----------------|
 | 0 Protocol feasibility (real PodMic USB) | Stub + checklist only — requires hardware |
 | 1 Vertical slice (dial ↔ gain, offline/reconnect) | Implemented against **simulator** |
-| 2 Capability depth | Monitor, mute, HPF, compressor wired on PodMic sim; dial press → mute |
+| 2 Capability depth | Monitor, mute, HPF, compressor on PodMic sim **and** Stream Deck (monitor dial + HPF/COMP keys) |
 | 3 RØDECaster validation | Duo simulator + mix bank + §43 ownership tests |
 | 3b Official MIDI (Tier B) | `RodecasterDuoMidiAdapter` + mock transport — mute/listen/pads/record ([midi-tier-b.md](./midi-tier-b.md)) |
 | 4 Creator surface (software) | Listen key, Tier honesty (`N/A`), dual-adapter topology mode, channel dial mute press |
@@ -70,9 +70,12 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 | Action | Rotate / Key | Press | Feedback |
 |--------|--------------|-------|----------|
 | Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTED` / `OFFLINE` / `N/A` |
+| Mic Monitor | `AdjustLevel` on Monitoring | reserved | live % / `OFFLINE` / `N/A` |
 | Channel Level | `AdjustLevel` | `ToggleMute` | live level / `MUTE …` / `OFFLINE` / `N/A` |
 | Mute Toggle | — | `ToggleMute` | `MUTED` / label |
 | Listen Toggle | — | `ToggleListen` | `LISTEN ●` / label |
+| High-Pass | — | `ToggleProcessing` (HPF) | `HPF ●` / `HPF` |
+| Compressor | — | `ToggleProcessing` (Compression) | `COMP ●` / `COMP` |
 | SMART Pad | — | `TriggerPad` | pad label / brief `FIRE` |
 | Record | — | Start/Stop recording | `REC` / `REC ●` |
 
