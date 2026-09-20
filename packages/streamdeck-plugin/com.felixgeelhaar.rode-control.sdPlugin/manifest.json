@@ -1,0 +1,121 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "com.felixgeelhaar.rode-control",
+  "Name": "RØDE Control",
+  "Version": "0.3.0.0",
+  "Author": "Felix Geelhaar",
+  "Category": "RØDE Control",
+  "CategoryIcon": "imgs/category-icon",
+  "Icon": "imgs/plugin-icon",
+  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Dial gain/levels plus mute, SMART pads, and record (simulators / official MIDI Tier B).",
+  "CodePath": "bin/plugin.js",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.6"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "Actions": [
+    {
+      "UUID": "com.felixgeelhaar.rode-control.mic-gain",
+      "Name": "Mic Gain",
+      "Icon": "imgs/actions/mic-gain/icon",
+      "Tooltip": "Adjust My Mic gain; press to mute (MIDI mode: mute-primary)",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust gain",
+          "Push": "Toggle mute",
+          "Touch": "Show mic controls (future)"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/mic-gain/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.channel-level",
+      "Name": "Channel Level",
+      "Icon": "imgs/actions/channel-level/icon",
+      "Tooltip": "Adjust a mix channel level (Game / Chat / Music)",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust level",
+          "Push": "Reserved",
+          "Touch": "Show channel controls (future)"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/channel-level/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.mute-toggle",
+      "Name": "Mute Toggle",
+      "Icon": "imgs/actions/mute-toggle/icon",
+      "Tooltip": "Toggle mute on a channel (works with simulators and official RØDECaster MIDI)",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/mute-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "MUTE"
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.pad-trigger",
+      "Name": "SMART Pad",
+      "Icon": "imgs/actions/pad-trigger/icon",
+      "Tooltip": "Trigger a RØDECaster SMART Pad (official MIDI Tier B)",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/pad-trigger/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "PAD"
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.record-toggle",
+      "Name": "Record",
+      "Icon": "imgs/actions/record-toggle/icon",
+      "Tooltip": "Start/stop RØDECaster recording (official MIDI Tier B)",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/record-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "REC"
+        }
+      ]
+    }
+  ]
+}
