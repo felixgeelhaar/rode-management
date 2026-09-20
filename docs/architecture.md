@@ -33,10 +33,11 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 |-------|----------------|
 | 0 Protocol feasibility (real PodMic USB) | Stub + checklist only — requires hardware |
 | 1 Vertical slice (dial ↔ gain, offline/reconnect) | Implemented against **simulator** |
-| 2 Capability depth | Monitor, mute, HPF, compressor wired on PodMic sim; dial press → mute |
+| 2 Capability depth | Monitor, mute, HPF, compressor on PodMic sim **and** Stream Deck (monitor dial + HPF/COMP keys) |
 | 3 RØDECaster validation | Duo simulator + mix bank + §43 ownership tests |
 | 3b Official MIDI (Tier B) | `RodecasterDuoMidiAdapter` + mock transport — mute/listen/pads/record ([midi-tier-b.md](./midi-tier-b.md)) |
-| 4+ Creator product / ecosystem | Not started |
+| 4 Creator surface (software) | Listen key, Tier honesty (`N/A`), dual-adapter topology mode, channel dial mute press |
+| 4+ Ecosystem / workflows | Not started |
 
 ## Adapter contract
 
@@ -56,21 +57,38 @@ A Mic Gain binding can receive `ToggleMute` / `SetProcessing`. The core retarget
 User intent → Adapter command → Device → Observed state → Core → Stream Deck feedback
 ```
 
-Optimistic UI is allowed for feel, but displays reconcile to authoritative adapter/device state. Offline bindings remain configured and show `OFFLINE`.
+Optimistic UI is allowed for feel, but displays reconcile to authoritative adapter/device state. Offline bindings remain configured and show `OFFLINE`. Bindings that request a capability no live device exposes show `N/A` / `unsupported` (Tier honesty — not the same as disconnect).
+
+## Topology & ownership
+
+`CapabilityCore.setTopology()` records feeds/owns edges. When multiple adapters expose the same logical control (e.g. USB PodMic Gain + RØDECaster Input 1 Gain), resolution prefers **mixer-owned** endpoints by default (`preferMixerOwnership`), boosted further when a `feeds` edge points at the mixer channel.
+
+`RODE_CONTROL_ADAPTER=topology` registers PodMic USB sim + Duo sim together for this path.
+
+## Binding persistence
+
+`CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Demo: `npm run demo:bindings`.
 
 ## Stream Deck+ actions
 
 | Action | Rotate / Key | Press | Feedback |
 |--------|--------------|-------|----------|
-| Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTE …` / `OFFLINE` |
-| Channel Level | `AdjustLevel` | reserved | live level / `OFFLINE` |
-| Mute Toggle | — | `ToggleMute` | `MUTED` / label / `OFFLINE` |
-| SMART Pad | — | `TriggerPad` | pad label / `FIRE` |
+| Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTED` / `OFFLINE` / `N/A` |
+| Mic Monitor | `AdjustLevel` on Monitoring | reserved | live % / `OFFLINE` / `N/A` |
+| Channel Level | `AdjustLevel` (Game/Chat/Music/**HP**) | `ToggleMute` | live level / `MUTE …` / `OFFLINE` / `N/A` |
+| Mute Toggle | — | `ToggleMute` | `MUTED` / label |
+| Listen Toggle | — | `ToggleListen` | `LISTEN ●` / label |
+| High-Pass | — | `ToggleProcessing` (HPF) | `HPF ●` / `HPF` |
+| Compressor | — | `ToggleProcessing` (Compression) | `COMP ●` / `COMP` |
+| SMART Pad | — | `TriggerPad` | pad label / brief `FIRE` |
 | Record | — | Start/Stop recording | `REC` / `REC ●` |
+
+Property Inspector (`ui/property-inspector.html`) edits `bindingId` and dial `sensitivity` per action instance.
 
 Default runtime uses the PodMic simulator (`RODE_CONTROL_ADAPTER=sim`).  
 Set `RODE_CONTROL_ADAPTER=rodecaster` for the Duo mix-bank simulator.  
-Set `RODE_CONTROL_ADAPTER=rodecaster-midi` for official MIDI Tier B (mute/pads/record; mock transport by default).
+Set `RODE_CONTROL_ADAPTER=rodecaster-midi` for official MIDI Tier B (mute/listen/pads/record; mock transport by default).  
+Set `RODE_CONTROL_ADAPTER=topology` for dual-adapter mixer-preferred ownership.
 
 ## Next hardware steps
 

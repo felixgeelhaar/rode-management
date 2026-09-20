@@ -89,18 +89,16 @@ describe("PodMicUsbSimAdapter", () => {
     expect(adapter.isMuted()).toBe(true);
 
     await core.execute({
-      type: "SetProcessing",
+      type: "ToggleProcessing",
       bindingId: "my-mic-hpf",
       capabilityType: "HighPassFilter",
-      value: true,
     });
     expect(adapter.isHighPassEnabled()).toBe(true);
 
     await core.execute({
-      type: "SetProcessing",
+      type: "ToggleProcessing",
       bindingId: "my-mic-comp",
       capabilityType: "Compression",
-      value: true,
     });
     expect(adapter.isCompressorEnabled()).toBe(true);
   });

@@ -135,6 +135,7 @@ export type ControlCommand =
   | { type: "ToggleMute"; bindingId: string }
   | { type: "ToggleListen"; bindingId: string }
   | { type: "SetProcessing"; bindingId: string; capabilityType: CapabilityType; value: number | boolean | string }
+  | { type: "ToggleProcessing"; bindingId: string; capabilityType: CapabilityType }
   | { type: "ApplyPreset"; bindingId: string; presetId: string }
   | { type: "TriggerPad"; bindingId: string }
   | { type: "StartRecording"; bindingId: string }

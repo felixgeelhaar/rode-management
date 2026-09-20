@@ -42,13 +42,14 @@ RODE_CONTROL_ADAPTER=rodecaster-midi
 
 | Action | Behavior in MIDI mode |
 |--------|------------------------|
-| Mic Gain dial | Bound to **Mute** — press toggles mute; rotate shows `MUTE ONLY` |
+| Mic Gain dial | Bound to **Mute** — press toggles mute; rotate shows `MUTE ONLY`; display `MUTED` / `LIVE` |
 | Mute Toggle key | `ToggleMute` on `mic-mute` |
+| Listen Toggle key | `ToggleListen` on `game-listen` |
 | SMART Pad key | `TriggerPad` on `pad-1` (override via settings `bindingId`) |
 | Record key | Start/stop on `record` |
-| Channel Level dial | Offline (Level not on official MIDI) |
+| Channel Level dial | Surfaces **`N/A`** (Level not on official MIDI — not OFFLINE) |
 
-Stable bindings: `my-mic-gain` (Mute), `mic-mute`, `pad-1`, `record`.
+Stable bindings: `my-mic-gain` (Mute), `mic-mute`, `game-listen`, `pad-1`, `record`.
 
 ## Hardware next step
 

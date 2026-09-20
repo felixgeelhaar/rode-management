@@ -11,3 +11,9 @@ export type {
   CapabilityCoreOptions,
   SuggestedBinding,
 } from "./capability-core.js";
+export {
+  createBindingProfile,
+  parseBindingProfile,
+  serializeBindingProfile,
+} from "./bindings-io.js";
+export type { BindingProfile } from "./bindings-io.js";

@@ -1,13 +1,13 @@
 {
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
-  "Name": "RØDE Control",
-  "Version": "0.3.0.0",
+  "Name": "R\u00d8DE Control",
+  "Version": "0.6.0.0",
   "Author": "Felix Geelhaar",
-  "Category": "RØDE Control",
+  "Category": "R\u00d8DE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Dial gain/levels plus mute, SMART pads, and record (simulators / official MIDI Tier B).",
+  "Description": "Capability-driven Stream Deck+ controls for your R\u00d8DE audio setup. Mic gain/monitor/DSP, mix/headphones levels, mute/listen, SMART pads, and record \u2014 with binding profiles and property inspector.",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -33,7 +33,9 @@
       "Name": "Mic Gain",
       "Icon": "imgs/actions/mic-gain/icon",
       "Tooltip": "Adjust My Mic gain; press to mute (MIDI mode: mute-primary)",
-      "Controllers": ["Encoder"],
+      "Controllers": [
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
@@ -48,19 +50,47 @@
           "TitleAlignment": "middle",
           "FontSize": 12
         }
-      ]
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.mic-monitor",
+      "Name": "Mic Monitor",
+      "Icon": "imgs/actions/mic-monitor/icon",
+      "Tooltip": "Adjust PodMic USB monitor / headphone cue level",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust monitor level",
+          "Push": "Reserved",
+          "Touch": "Show monitor controls (future)"
+        }
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/mic-monitor/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
     },
     {
       "UUID": "com.felixgeelhaar.rode-control.channel-level",
       "Name": "Channel Level",
       "Icon": "imgs/actions/channel-level/icon",
       "Tooltip": "Adjust a mix channel level (Game / Chat / Music)",
-      "Controllers": ["Encoder"],
+      "Controllers": [
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
           "Rotate": "Adjust level",
-          "Push": "Reserved",
+          "Push": "Toggle mute",
           "Touch": "Show channel controls (future)"
         }
       },
@@ -70,14 +100,17 @@
           "TitleAlignment": "middle",
           "FontSize": 12
         }
-      ]
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
     },
     {
       "UUID": "com.felixgeelhaar.rode-control.mute-toggle",
       "Name": "Mute Toggle",
       "Icon": "imgs/actions/mute-toggle/icon",
-      "Tooltip": "Toggle mute on a channel (works with simulators and official RØDECaster MIDI)",
-      "Controllers": ["Keypad"],
+      "Tooltip": "Toggle mute on a channel (works with simulators and official R\u00d8DECaster MIDI)",
+      "Controllers": [
+        "Keypad"
+      ],
       "States": [
         {
           "Image": "imgs/actions/mute-toggle/key",
@@ -85,14 +118,71 @@
           "FontSize": 12,
           "Title": "MUTE"
         }
-      ]
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.listen-toggle",
+      "Name": "Listen Toggle",
+      "Icon": "imgs/actions/listen-toggle/icon",
+      "Tooltip": "Toggle Listen/solo on a R\u00d8DECaster channel (official MIDI Tier B)",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/listen-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "LISTEN"
+        }
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.hpf-toggle",
+      "Name": "High-Pass",
+      "Icon": "imgs/actions/hpf-toggle/icon",
+      "Tooltip": "Toggle mic high-pass filter (PodMic sim / when hardware exposes it)",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/hpf-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "HPF"
+        }
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.compressor-toggle",
+      "Name": "Compressor",
+      "Icon": "imgs/actions/compressor-toggle/icon",
+      "Tooltip": "Toggle mic compressor (PodMic sim / when hardware exposes it)",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/compressor-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "COMP"
+        }
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
     },
     {
       "UUID": "com.felixgeelhaar.rode-control.pad-trigger",
       "Name": "SMART Pad",
       "Icon": "imgs/actions/pad-trigger/icon",
-      "Tooltip": "Trigger a RØDECaster SMART Pad (official MIDI Tier B)",
-      "Controllers": ["Keypad"],
+      "Tooltip": "Trigger a R\u00d8DECaster SMART Pad (official MIDI Tier B)",
+      "Controllers": [
+        "Keypad"
+      ],
       "States": [
         {
           "Image": "imgs/actions/pad-trigger/key",
@@ -100,14 +190,17 @@
           "FontSize": 12,
           "Title": "PAD"
         }
-      ]
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
     },
     {
       "UUID": "com.felixgeelhaar.rode-control.record-toggle",
       "Name": "Record",
       "Icon": "imgs/actions/record-toggle/icon",
-      "Tooltip": "Start/stop RØDECaster recording (official MIDI Tier B)",
-      "Controllers": ["Keypad"],
+      "Tooltip": "Start/stop R\u00d8DECaster recording (official MIDI Tier B)",
+      "Controllers": [
+        "Keypad"
+      ],
       "States": [
         {
           "Image": "imgs/actions/record-toggle/key",
@@ -115,7 +208,8 @@
           "FontSize": 12,
           "Title": "REC"
         }
-      ]
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
     }
   ]
 }

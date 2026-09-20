@@ -31,6 +31,11 @@ async function main(): Promise<void> {
   core.upsertBinding(
     createBinding("music-level", "MUSIC", "Level", { sourceHint: "Music" }),
   );
+  core.upsertBinding(
+    createBinding("headphones-level", "HP", "Level", {
+      sourceHint: "Headphones",
+    }),
+  );
 
   console.log("Suggested banks:");
   for (const suggestion of suggestCreatorBindings(core.listDevices())) {
@@ -40,13 +45,27 @@ async function main(): Promise<void> {
   }
 
   console.log("Mix surface:");
-  for (const id of ["my-mic-gain", "game-level", "chat-level", "music-level"]) {
+  for (const id of [
+    "my-mic-gain",
+    "game-level",
+    "chat-level",
+    "music-level",
+    "headphones-level",
+  ]) {
     console.log(" ", core.getControlSurface(id));
   }
 
   console.log("Adjust GAME +3 dB:");
   await core.execute({ type: "AdjustLevel", bindingId: "game-level", delta: 3 });
   console.log(" ", core.getControlSurface("game-level"));
+
+  console.log("Headphones +5:");
+  await core.execute({
+    type: "AdjustLevel",
+    bindingId: "headphones-level",
+    delta: 5,
+  });
+  console.log(" ", core.getControlSurface("headphones-level"));
 
   console.log("Mute MIC via gain binding press:");
   const muteResult = await core.execute({

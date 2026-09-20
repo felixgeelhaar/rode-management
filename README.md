@@ -24,6 +24,8 @@ npm test
 npm run demo:vertical-slice
 npm run demo:mix-bank
 npm run demo:midi
+npm run demo:topology
+npm run demo:bindings
 npm run build
 ```
 
@@ -31,7 +33,7 @@ npm run build
 
 ```text
 discover → show gain → dial adjust → external change → disconnect OFFLINE → reconnect
-+ monitor / mute / HPF / compressor (Phase 2)
++ monitor dial / mute / HPF / compressor keys (Phase 2 on Stream Deck)
 ```
 
 ### RØDECaster mix bank (no hardware)
@@ -46,7 +48,14 @@ dial press on MIC → mute retarget
 
 ```text
 mute / listen / SMART pads / record over documented MIDI CCs
-levels + gain intentionally unsupported
+levels + gain intentionally N/A (not offline)
+```
+
+### Dual-adapter topology (no hardware)
+
+```text
+PodMic USB sim + Duo sim together
+My Mic / Gain prefers mixer ownership when both match
 ```
 
 ### Stream Deck plugin
@@ -64,9 +73,16 @@ RODE_CONTROL_ADAPTER=rodecaster
 
 # Official MIDI Tier B (mock transport until a real port is wired)
 RODE_CONTROL_ADAPTER=rodecaster-midi
+
+# Dual-adapter topology (mixer-preferred Gain)
+RODE_CONTROL_ADAPTER=topology
+
+# Optional: merge/replace bindings from a JSON profile
+RODE_CONTROL_BINDINGS_PATH=./my-layout.json
+RODE_CONTROL_BINDINGS_REPLACE=1
 ```
 
-Key actions (Mute / SMART Pad / Record) work in MIDI mode; Channel Level dials stay offline by design.
+Key actions (Mute / Listen / SMART Pad / Record / HPF / COMP) work in the appropriate modes. Channel Level dials show `N/A` on Tier B MIDI. Use the property inspector to point a Channel Level instance at `chat-level`, `music-level`, or `headphones-level`.
 
 ## Workspace
 
