@@ -68,6 +68,15 @@ Built artifact:
 `packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin`
 
 ```bash
+npm install && npm run build
+npm install -g @elgato/cli
+streamdeck link packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin
+streamdeck restart com.felixgeelhaar.rode-control
+```
+
+Then place **RØDE Control** actions on Stream Deck+. Property Inspector offers live binding/workflow pickers.
+
+```bash
 # PodMic USB simulator (default)
 RODE_CONTROL_ADAPTER=sim
 

@@ -2,21 +2,26 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, MIC_MUTE_BINDING_ID } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type MuteSettings = {
   bindingId?: string;
 };
 
-/**
- * Key action: toggle mute on a logical binding (Tier B MIDI or any Mute capability).
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.mute-toggle" })
+@action({ UUID: ACTION_UUIDS.muteToggle })
 export class MuteToggleKeyAction extends SingletonAction<MuteSettings> {
   private readonly feedback = new BindingFeedbackSession();
 
@@ -37,6 +42,16 @@ export class MuteToggleKeyAction extends SingletonAction<MuteSettings> {
       defaultBindingId: MIC_MUTE_BINDING_ID,
       render: (action, id) => this.render(action, id),
     });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<MuteSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.muteToggle);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.muteToggle);
   }
 
   override async onWillDisappear(

@@ -2,21 +2,26 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, RECORD_BINDING_ID } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type RecordSettings = {
   bindingId?: string;
 };
 
-/**
- * Key action: start/stop recording on a Recording binding (official MIDI Tier B).
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.record-toggle" })
+@action({ UUID: ACTION_UUIDS.recordToggle })
 export class RecordToggleKeyAction extends SingletonAction<RecordSettings> {
   private readonly feedback = new BindingFeedbackSession();
 
@@ -39,6 +44,16 @@ export class RecordToggleKeyAction extends SingletonAction<RecordSettings> {
       defaultBindingId: RECORD_BINDING_ID,
       render: (action, id) => this.render(action, id),
     });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<RecordSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.recordToggle);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.recordToggle);
   }
 
   override async onWillDisappear(

@@ -2,21 +2,26 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, PAD_1_BINDING_ID } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type PadSettings = {
   bindingId?: string;
 };
 
-/**
- * Key action: fire a SMART Pad / PadTrigger binding (official MIDI Tier B).
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.pad-trigger" })
+@action({ UUID: ACTION_UUIDS.padTrigger })
 export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
   private readonly feedback = new BindingFeedbackSession();
   private readonly flashTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -39,6 +44,16 @@ export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
       defaultBindingId: PAD_1_BINDING_ID,
       render: (action, id) => this.render(action, id),
     });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<PadSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.padTrigger);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.padTrigger);
   }
 
   override async onWillDisappear(

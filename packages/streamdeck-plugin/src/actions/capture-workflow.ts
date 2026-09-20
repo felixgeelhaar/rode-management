@@ -2,23 +2,27 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { getCapabilityCore } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type CaptureSettings = {
-  /** Workflow id to write (default: custom) */
   workflowId?: string;
 };
 
 const DEFAULT_WORKFLOW_ID = "custom";
 
-/**
- * Key action: snapshot the live surface into a workflow preset.
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.capture-workflow" })
+@action({ UUID: ACTION_UUIDS.captureWorkflow })
 export class CaptureWorkflowKeyAction extends SingletonAction<CaptureSettings> {
   private readonly feedbackUnsubscribers = new Map<string, () => void>();
   private readonly workflowByAction = new Map<string, string>();
@@ -35,6 +39,16 @@ export class CaptureWorkflowKeyAction extends SingletonAction<CaptureSettings> {
   ): Promise<void> {
     const workflowId = ev.payload.settings.workflowId ?? DEFAULT_WORKFLOW_ID;
     await this.attach(ev.action, workflowId);
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<CaptureSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.captureWorkflow);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.captureWorkflow);
   }
 
   override async onWillDisappear(

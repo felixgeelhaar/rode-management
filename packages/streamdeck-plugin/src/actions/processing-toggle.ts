@@ -2,30 +2,36 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
 import type { CapabilityType } from "@rode-control/core";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { BindingFeedbackSession } from "../binding-feedback.js";
 import {
   getCapabilityCore,
   MIC_COMP_BINDING_ID,
   MIC_HPF_BINDING_ID,
 } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type ProcessingSettings = {
   bindingId?: string;
 };
 
-/**
- * Shared boolean processing toggle (HPF / compressor / …).
- */
 abstract class ProcessingToggleKeyAction extends SingletonAction<ProcessingSettings> {
   protected abstract readonly defaultBindingId: string;
   protected abstract readonly capabilityType: CapabilityType;
   protected abstract readonly onTitle: string;
   protected abstract readonly offTitle: string;
+  protected abstract readonly actionUUID: string;
 
   private readonly feedback = new BindingFeedbackSession();
 
@@ -48,6 +54,16 @@ abstract class ProcessingToggleKeyAction extends SingletonAction<ProcessingSetti
       defaultBindingId: this.defaultBindingId,
       render: (action, id) => this.render(action, id),
     });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<ProcessingSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, this.actionUUID);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, this.actionUUID);
   }
 
   override async onWillDisappear(
@@ -90,18 +106,20 @@ abstract class ProcessingToggleKeyAction extends SingletonAction<ProcessingSetti
   }
 }
 
-@action({ UUID: "com.felixgeelhaar.rode-control.hpf-toggle" })
+@action({ UUID: ACTION_UUIDS.hpfToggle })
 export class HpfToggleKeyAction extends ProcessingToggleKeyAction {
   protected readonly defaultBindingId = MIC_HPF_BINDING_ID;
   protected readonly capabilityType = "HighPassFilter" as const;
   protected readonly onTitle = "HPF ●";
   protected readonly offTitle = "HPF";
+  protected readonly actionUUID = ACTION_UUIDS.hpfToggle;
 }
 
-@action({ UUID: "com.felixgeelhaar.rode-control.compressor-toggle" })
+@action({ UUID: ACTION_UUIDS.compressorToggle })
 export class CompressorToggleKeyAction extends ProcessingToggleKeyAction {
   protected readonly defaultBindingId = MIC_COMP_BINDING_ID;
   protected readonly capabilityType = "Compression" as const;
   protected readonly onTitle = "COMP ●";
   protected readonly offTitle = "COMP";
+  protected readonly actionUUID = ACTION_UUIDS.compressorToggle;
 }

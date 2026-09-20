@@ -2,12 +2,12 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "R\u00d8DE Control",
-  "Version": "0.9.0.0",
+  "Version": "1.0.0.0",
   "Author": "Felix Geelhaar",
   "Category": "R\u00d8DE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for R\u00d8DE setups \u2014 dials, keys, workflows, binding profiles.",
+  "Description": "Capability-driven Stream Deck+ controls for R\u00d8DE setups \u2014 dials, keys, workflows, live property inspector.",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -41,7 +41,7 @@
         "TriggerDescription": {
           "Rotate": "Adjust gain",
           "Push": "Toggle mute",
-          "Touch": "Show mic controls (future)"
+          "Touch": "Show ownership / focus readout"
         }
       },
       "States": [
@@ -65,8 +65,8 @@
         "layout": "$B1",
         "TriggerDescription": {
           "Rotate": "Adjust monitor level",
-          "Push": "Reserved",
-          "Touch": "Show monitor controls (future)"
+          "Push": "Toggle mic mute",
+          "Touch": "Focus cue readout"
         }
       },
       "States": [
@@ -91,7 +91,7 @@
         "TriggerDescription": {
           "Rotate": "Adjust level",
           "Push": "Toggle mute",
-          "Touch": "Show channel controls (future)"
+          "Touch": "Show channel ownership / focus"
         }
       },
       "States": [

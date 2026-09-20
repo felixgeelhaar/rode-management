@@ -2,23 +2,27 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { getCapabilityCore } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type WorkflowSettings = {
-  /** Registered workflow id (default: streaming) */
   workflowId?: string;
 };
 
 const DEFAULT_WORKFLOW_ID = "streaming";
 
-/**
- * Key action: apply a product workflow preset (Streaming / Podcast / …).
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.apply-workflow" })
+@action({ UUID: ACTION_UUIDS.applyWorkflow })
 export class ApplyWorkflowKeyAction extends SingletonAction<WorkflowSettings> {
   private readonly feedbackUnsubscribers = new Map<string, () => void>();
   private readonly workflowByAction = new Map<string, string>();
@@ -35,6 +39,16 @@ export class ApplyWorkflowKeyAction extends SingletonAction<WorkflowSettings> {
   ): Promise<void> {
     const workflowId = ev.payload.settings.workflowId ?? DEFAULT_WORKFLOW_ID;
     await this.attach(ev.action, workflowId);
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<WorkflowSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.applyWorkflow);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.applyWorkflow);
   }
 
   override async onWillDisappear(

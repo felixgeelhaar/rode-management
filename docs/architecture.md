@@ -90,9 +90,9 @@ Rapid `AdjustGain` / `AdjustLevel` ticks for the same binding are batched within
 
 | Action | Rotate / Key | Press | Feedback |
 |--------|--------------|-------|----------|
-| Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTED` / `OFFLINE` / `N/A` |
-| Mic Monitor | `AdjustLevel` on Monitoring | reserved | live % / `OFFLINE` / `N/A` |
-| Channel Level | `AdjustLevel` (Game/Chat/Music/**HP**) | `ToggleMute` | live level / `MUTE …` / `OFFLINE` / `N/A` |
+| Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTED` / touch ownership |
+| Mic Monitor | `AdjustLevel` on Monitoring | `ToggleMute` (mic) | live % / `CUE` on touch |
+| Channel Level | `AdjustLevel` (Game/Chat/Music/**HP**) | `ToggleMute` | live level / touch ownership |
 | Mute Toggle | — | `ToggleMute` | `MUTED` / label |
 | Listen Toggle | — | `ToggleListen` | `LISTEN ●` / label |
 | High-Pass | — | `ToggleProcessing` (HPF) | `HPF ●` / `HPF` |
@@ -102,7 +102,16 @@ Rapid `AdjustGain` / `AdjustLevel` ticks for the same binding are batched within
 | Apply Workflow | — | `ApplyWorkflow` | workflow label / brief `OK` |
 | Capture Workflow | — | snapshot surface → workflow id | `CAP …` / `OK N` |
 
-Property Inspector (`ui/property-inspector.html`) edits `bindingId` and dial `sensitivity` per action instance.
+Property Inspector loads live bindings/workflows from the capability core (dropdowns + status). Dial **touch** shows ownership/focus readout; Mic Monitor **press** toggles mic mute.
+
+### Install into Stream Deck
+
+```bash
+npm install && npm run build
+npm install -g @elgato/cli
+streamdeck link packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin
+streamdeck restart com.felixgeelhaar.rode-control
+```
 
 Default runtime uses the PodMic simulator (`RODE_CONTROL_ADAPTER=sim`).  
 Set `RODE_CONTROL_ADAPTER=rodecaster` for the Duo mix-bank simulator.  

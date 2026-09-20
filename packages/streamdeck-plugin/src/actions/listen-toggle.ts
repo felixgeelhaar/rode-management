@@ -2,21 +2,26 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { BindingFeedbackSession } from "../binding-feedback.js";
 import { GAME_LISTEN_BINDING_ID, getCapabilityCore } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type ListenSettings = {
   bindingId?: string;
 };
 
-/**
- * Key action: toggle Listen/solo on a channel (official MIDI Tier B).
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.listen-toggle" })
+@action({ UUID: ACTION_UUIDS.listenToggle })
 export class ListenToggleKeyAction extends SingletonAction<ListenSettings> {
   private readonly feedback = new BindingFeedbackSession();
 
@@ -39,6 +44,16 @@ export class ListenToggleKeyAction extends SingletonAction<ListenSettings> {
       defaultBindingId: GAME_LISTEN_BINDING_ID,
       render: (action, id) => this.render(action, id),
     });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<ListenSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.listenToggle);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.listenToggle);
   }
 
   override async onWillDisappear(
