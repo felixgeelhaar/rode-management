@@ -1,10 +1,12 @@
 import {
   action,
+  DidReceiveSettingsEvent,
   KeyDownEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, MIC_MUTE_BINDING_ID } from "../core-host.js";
 
 type MuteSettings = {
@@ -16,33 +18,31 @@ type MuteSettings = {
  */
 @action({ UUID: "com.felixgeelhaar.rode-control.mute-toggle" })
 export class MuteToggleKeyAction extends SingletonAction<MuteSettings> {
-  private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly feedback = new BindingFeedbackSession();
 
   override async onWillAppear(ev: WillAppearEvent<MuteSettings>): Promise<void> {
     const bindingId = ev.payload.settings.bindingId ?? MIC_MUTE_BINDING_ID;
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        (event.type === "state-changed" &&
-          event.resolved.binding.id === bindingId) ||
-        (event.type === "binding-offline" && event.bindingId === bindingId) ||
-        (event.type === "binding-online" && event.bindingId === bindingId)
-      ) {
-        void this.render(ev.action, bindingId);
-      }
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
+      render: (action, id) => this.render(action, id),
     });
+  }
 
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, bindingId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<MuteSettings>,
+  ): Promise<void> {
+    await this.feedback.onDidReceiveSettings(ev, {
+      defaultBindingId: MIC_MUTE_BINDING_ID,
+      render: (action, id) => this.render(action, id),
+    });
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<MuteSettings>,
   ): Promise<void> {
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.feedback.onWillDisappear(ev);
   }
 
   override async onKeyDown(ev: KeyDownEvent<MuteSettings>): Promise<void> {

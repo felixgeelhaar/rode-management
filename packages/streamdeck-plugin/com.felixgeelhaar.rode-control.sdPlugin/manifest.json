@@ -2,7 +2,7 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "R\u00d8DE Control",
-  "Version": "0.7.0.0",
+  "Version": "0.8.0.0",
   "Author": "Felix Geelhaar",
   "Category": "R\u00d8DE Control",
   "CategoryIcon": "imgs/category-icon",

@@ -1,5 +1,6 @@
 import {
   action,
+  DidReceiveSettingsEvent,
   KeyDownEvent,
   SingletonAction,
   WillAppearEvent,
@@ -20,31 +21,26 @@ const DEFAULT_WORKFLOW_ID = "streaming";
 @action({ UUID: "com.felixgeelhaar.rode-control.apply-workflow" })
 export class ApplyWorkflowKeyAction extends SingletonAction<WorkflowSettings> {
   private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly workflowByAction = new Map<string, string>();
 
   override async onWillAppear(
     ev: WillAppearEvent<WorkflowSettings>,
   ): Promise<void> {
     const workflowId = ev.payload.settings.workflowId ?? DEFAULT_WORKFLOW_ID;
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
+    await this.attach(ev.action, workflowId);
+  }
 
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        event.type === "workflow-applied" &&
-        event.workflowId === workflowId
-      ) {
-        void this.render(ev.action, workflowId, event.ok ? "OK" : "ERR");
-      }
-    });
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, workflowId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<WorkflowSettings>,
+  ): Promise<void> {
+    const workflowId = ev.payload.settings.workflowId ?? DEFAULT_WORKFLOW_ID;
+    await this.attach(ev.action, workflowId);
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<WorkflowSettings>,
   ): Promise<void> {
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.detach(ev.action.id);
   }
 
   override async onKeyDown(ev: KeyDownEvent<WorkflowSettings>): Promise<void> {
@@ -59,6 +55,34 @@ export class ApplyWorkflowKeyAction extends SingletonAction<WorkflowSettings> {
       workflowId,
       result.ok ? "OK" : result.error ?? "ERR",
     );
+  }
+
+  private async attach(
+    actionRef: WillAppearEvent<WorkflowSettings>["action"],
+    workflowId: string,
+  ): Promise<void> {
+    this.detach(actionRef.id);
+    this.workflowByAction.set(actionRef.id, workflowId);
+
+    const core = await getCapabilityCore();
+    const unsubscribe = core.subscribe((event) => {
+      const tracked = this.workflowByAction.get(actionRef.id);
+      if (
+        tracked &&
+        event.type === "workflow-applied" &&
+        event.workflowId === tracked
+      ) {
+        void this.render(actionRef, tracked, event.ok ? "OK" : "ERR");
+      }
+    });
+    this.feedbackUnsubscribers.set(actionRef.id, unsubscribe);
+    await this.render(actionRef, workflowId);
+  }
+
+  private detach(actionId: string): void {
+    this.feedbackUnsubscribers.get(actionId)?.();
+    this.feedbackUnsubscribers.delete(actionId);
+    this.workflowByAction.delete(actionId);
   }
 
   private async render(

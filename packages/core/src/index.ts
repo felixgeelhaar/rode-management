@@ -8,6 +8,7 @@ export {
   suggestCreatorBindings,
 } from "./capability-core.js";
 export type {
+  BindingDiagnosis,
   CapabilityCoreOptions,
   SuggestedBinding,
 } from "./capability-core.js";
@@ -21,6 +22,7 @@ export {
   captureWorkflowFromBindings,
   createWorkflowProfile,
   parseWorkflowProfile,
+  parseWorkflowProfiles,
   serializeWorkflowProfile,
 } from "./workflow.js";
 export type { WorkflowProfile, WorkflowStep } from "./workflow.js";

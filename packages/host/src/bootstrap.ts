@@ -4,6 +4,7 @@ import {
   CapabilityCore as Core,
   createBinding,
   createMicGainBinding,
+  parseWorkflowProfiles,
   suggestCreatorBindings,
 } from "@rode-control/core";
 import { PodMicUsbSimAdapter } from "@rode-control/adapter-podmic-usb";
@@ -39,6 +40,11 @@ export interface BootstrapOptions {
   bindingsReplace?: boolean;
   /** When set, write the binding profile after binding changes (debounced). */
   bindingsAutosavePath?: string;
+  /**
+   * Load workflow JSON (one profile, array, or `{ workflows: [...] }`).
+   * Merged after built-ins so file entries override matching ids.
+   */
+  workflowsPath?: string;
   dialCoalesceMs?: number;
 }
 
@@ -52,6 +58,7 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   RODE_CONTROL_BINDINGS_PATH
  *   RODE_CONTROL_BINDINGS_REPLACE=1
  *   RODE_CONTROL_BINDINGS_AUTOSAVE
+ *   RODE_CONTROL_WORKFLOWS_PATH
  */
 export async function createCapabilityCore(
   options: BootstrapOptions = {},
@@ -66,6 +73,8 @@ export async function createCapabilityCore(
     process.env.RODE_CONTROL_BINDINGS_REPLACE === "1";
   const autosavePath =
     options.bindingsAutosavePath ?? process.env.RODE_CONTROL_BINDINGS_AUTOSAVE;
+  const workflowsPath =
+    options.workflowsPath ?? process.env.RODE_CONTROL_WORKFLOWS_PATH;
 
   const core = new Core({
     preferMixerOwnership: true,
@@ -114,6 +123,13 @@ export async function createCapabilityCore(
 
   for (const workflow of builtInWorkflows()) {
     core.upsertWorkflow(workflow);
+  }
+
+  if (workflowsPath) {
+    const json = await readFile(workflowsPath, "utf8");
+    for (const workflow of parseWorkflowProfiles(json)) {
+      core.upsertWorkflow(workflow);
+    }
   }
 
   if (autosavePath) {

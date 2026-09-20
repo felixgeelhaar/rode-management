@@ -49,6 +49,54 @@ export function parseWorkflowProfile(json: string): WorkflowProfile {
       `Invalid workflow JSON: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+  return normalizeWorkflowProfile(raw);
+}
+
+/**
+ * Parse one workflow object, an array of workflows, or `{ workflows: [...] }`.
+ */
+export function parseWorkflowProfiles(json: string): WorkflowProfile[] {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch (err) {
+    throw new Error(
+      `Invalid workflow JSON: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.map((item, index) => {
+      try {
+        return normalizeWorkflowProfile(item);
+      } catch (err) {
+        throw new Error(
+          `workflows[${index}]: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    });
+  }
+
+  if (raw && typeof raw === "object" && "workflows" in raw) {
+    const bundle = raw as { workflows?: unknown };
+    if (!Array.isArray(bundle.workflows)) {
+      throw new Error("workflows must be an array");
+    }
+    return bundle.workflows.map((item, index) => {
+      try {
+        return normalizeWorkflowProfile(item);
+      } catch (err) {
+        throw new Error(
+          `workflows[${index}]: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    });
+  }
+
+  return [normalizeWorkflowProfile(raw)];
+}
+
+function normalizeWorkflowProfile(raw: unknown): WorkflowProfile {
   if (!raw || typeof raw !== "object") {
     throw new Error("Workflow profile must be an object");
   }

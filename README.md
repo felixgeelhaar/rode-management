@@ -82,6 +82,14 @@ RODE_CONTROL_ADAPTER=topology
 # Optional: merge/replace bindings from a JSON profile
 RODE_CONTROL_BINDINGS_PATH=./my-layout.json
 RODE_CONTROL_BINDINGS_REPLACE=1
+
+# Optional: load/override workflow presets from disk
+RODE_CONTROL_WORKFLOWS_PATH=./examples/workflow-streaming.json
+```
+
+```bash
+npm run cli -- diagnose my-mic-gain
+RODE_CONTROL_ADAPTER=rodecaster npm run cli -- workflow import ./examples/workflow-streaming.json
 ```
 
 Key actions (Mute / Listen / SMART Pad / Record / HPF / COMP) work in the appropriate modes. Channel Level dials show `N/A` on Tier B MIDI. Use the property inspector to point a Channel Level instance at `chat-level`, `music-level`, or `headphones-level`.

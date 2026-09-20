@@ -406,6 +406,27 @@ describe("CapabilityCore vertical slice", () => {
       valueText: "N/A",
       availability: "unsupported",
     });
+
+    const diagnosis = core.diagnoseBinding("game-level");
+    expect(diagnosis.status).toBe("unsupported");
+    expect(diagnosis.reason).toMatch(/Level/);
+    expect(diagnosis.candidates).toEqual([]);
+  });
+
+  it("diagnoses resolved ownership and missing bindings", async () => {
+    const adapter = new FakeMicAdapter();
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding(createMicGainBinding({ label: "My Mic" }));
+
+    const ok = core.diagnoseBinding("my-mic-gain");
+    expect(ok.status).toBe("resolved");
+    expect(ok.owner?.capabilityType).toBe("Gain");
+    expect(ok.owner?.endpointKind).toBe("microphone");
+    expect(ok.candidates[0]?.rank).toBe(0);
+
+    expect(core.diagnoseBinding("nope").status).toBe("missing");
   });
 
   it("prefers mixer-owned Gain when USB mic and RØDECaster both match", async () => {

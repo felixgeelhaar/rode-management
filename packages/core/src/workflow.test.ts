@@ -4,6 +4,7 @@ import {
   createBinding,
   createMicGainBinding,
   createWorkflowProfile,
+  parseWorkflowProfiles,
 } from "./index.js";
 import type { DeviceAdapter } from "./adapter.js";
 import type { CapabilityState, Device, StateSource } from "./types.js";
@@ -211,5 +212,34 @@ describe("workflow presets", () => {
     const applied = await core.applyWorkflow("snapshot");
     expect(applied.ok).toBe(true);
     expect(core.getControlSurface("my-mic-gain").valueText).toBe("33 dB");
+  });
+
+  it("parses single, array, and bundled workflow JSON", () => {
+    const single = parseWorkflowProfiles(
+      JSON.stringify(
+        createWorkflowProfile("streaming", "Streaming", [
+          { bindingId: "my-mic-gain", value: 48 },
+        ]),
+      ),
+    );
+    expect(single).toHaveLength(1);
+    expect(single[0]?.id).toBe("streaming");
+
+    const many = parseWorkflowProfiles(
+      JSON.stringify([
+        createWorkflowProfile("a", "A", [{ bindingId: "x", value: 1 }]),
+        createWorkflowProfile("b", "B", [{ bindingId: "y", value: true }]),
+      ]),
+    );
+    expect(many.map((w) => w.id)).toEqual(["a", "b"]);
+
+    const bundle = parseWorkflowProfiles(
+      JSON.stringify({
+        workflows: [
+          createWorkflowProfile("c", "C", [{ bindingId: "z", value: "ok" }]),
+        ],
+      }),
+    );
+    expect(bundle[0]?.id).toBe("c");
   });
 });

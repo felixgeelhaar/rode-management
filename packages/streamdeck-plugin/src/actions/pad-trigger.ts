@@ -1,10 +1,12 @@
 import {
   action,
+  DidReceiveSettingsEvent,
   KeyDownEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, PAD_1_BINDING_ID } from "../core-host.js";
 
 type PadSettings = {
@@ -16,33 +18,34 @@ type PadSettings = {
  */
 @action({ UUID: "com.felixgeelhaar.rode-control.pad-trigger" })
 export class PadTriggerKeyAction extends SingletonAction<PadSettings> {
-  private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly feedback = new BindingFeedbackSession();
   private readonly flashTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   override async onWillAppear(ev: WillAppearEvent<PadSettings>): Promise<void> {
     const bindingId = ev.payload.settings.bindingId ?? PAD_1_BINDING_ID;
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        (event.type === "binding-offline" && event.bindingId === bindingId) ||
-        (event.type === "binding-online" && event.bindingId === bindingId)
-      ) {
-        void this.render(ev.action, bindingId);
-      }
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
+      render: (action, id) => this.render(action, id),
     });
+  }
 
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, bindingId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<PadSettings>,
+  ): Promise<void> {
+    this.clearFlash(ev.action.id);
+    await this.feedback.onDidReceiveSettings(ev, {
+      defaultBindingId: PAD_1_BINDING_ID,
+      render: (action, id) => this.render(action, id),
+    });
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<PadSettings>,
   ): Promise<void> {
     this.clearFlash(ev.action.id);
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.feedback.onWillDisappear(ev);
   }
 
   override async onKeyDown(ev: KeyDownEvent<PadSettings>): Promise<void> {

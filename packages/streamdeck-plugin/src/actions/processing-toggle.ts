@@ -1,11 +1,13 @@
 import {
   action,
+  DidReceiveSettingsEvent,
   KeyDownEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
 import type { CapabilityType } from "@rode-control/core";
+import { BindingFeedbackSession } from "../binding-feedback.js";
 import {
   getCapabilityCore,
   MIC_COMP_BINDING_ID,
@@ -25,35 +27,33 @@ abstract class ProcessingToggleKeyAction extends SingletonAction<ProcessingSetti
   protected abstract readonly onTitle: string;
   protected abstract readonly offTitle: string;
 
-  private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly feedback = new BindingFeedbackSession();
 
   override async onWillAppear(
     ev: WillAppearEvent<ProcessingSettings>,
   ): Promise<void> {
     const bindingId = ev.payload.settings.bindingId ?? this.defaultBindingId;
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        (event.type === "state-changed" &&
-          event.resolved.binding.id === bindingId) ||
-        (event.type === "binding-offline" && event.bindingId === bindingId) ||
-        (event.type === "binding-online" && event.bindingId === bindingId)
-      ) {
-        void this.render(ev.action, bindingId);
-      }
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
+      render: (action, id) => this.render(action, id),
     });
+  }
 
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, bindingId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<ProcessingSettings>,
+  ): Promise<void> {
+    await this.feedback.onDidReceiveSettings(ev, {
+      defaultBindingId: this.defaultBindingId,
+      render: (action, id) => this.render(action, id),
+    });
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<ProcessingSettings>,
   ): Promise<void> {
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.feedback.onWillDisappear(ev);
   }
 
   override async onKeyDown(ev: KeyDownEvent<ProcessingSettings>): Promise<void> {

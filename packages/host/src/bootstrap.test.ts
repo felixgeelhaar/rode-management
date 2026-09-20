@@ -91,4 +91,26 @@ describe("createCapabilityCore", () => {
     expect(saved.bindings.some((b) => b.id === "extra-mute")).toBe(true);
     await core.stop();
   });
+
+  it("loads workflow overrides from disk after built-ins", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "rode-workflows-"));
+    const path = join(dir, "workflows.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        id: "streaming",
+        label: "Streaming Custom",
+        steps: [{ bindingId: "my-mic-gain", value: 55 }],
+      }),
+    );
+
+    const core = await createCapabilityCore({
+      mode: "rodecaster",
+      workflowsPath: path,
+    });
+    expect(core.getWorkflow("streaming")?.label).toBe("Streaming Custom");
+    expect(core.getWorkflow("podcast")?.id).toBe("podcast");
+    await core.stop();
+  });
 });

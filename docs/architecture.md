@@ -41,6 +41,7 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 | 4 Creator surface (software) | Listen, Tier honesty, topology, mic depth, binding profiles, property inspector |
 | 5 Second client (CLI) | `@rode-control/cli` + shared `@rode-control/host` bootstrap |
 | 5b Workflow presets | Built-in Streaming/Podcast workflows + Apply Workflow key |
+| 5c Diagnose / workflow files / key PI | `diagnose` CLI, `RODE_CONTROL_WORKFLOWS_PATH`, key DidReceiveSettings |
 | 5+ Ecosystem / workflows | Not started |
 
 ## Adapter contract
@@ -75,7 +76,9 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 
 ## Workflow presets
 
-Product-level workflows (`streaming`, `podcast`) store absolute values across bindings. Apply via `ApplyWorkflow` / Stream Deck **Apply Workflow** key / `npm run cli -- workflow apply streaming`. Capture the live surface with `workflow capture`.
+Product-level workflows (`streaming`, `podcast`) store absolute values across bindings. Apply via `ApplyWorkflow` / Stream Deck **Apply Workflow** key / `npm run cli -- workflow apply streaming`. Capture the live surface with `workflow capture`. Load extra/override workflows from `RODE_CONTROL_WORKFLOWS_PATH` (single profile, array, or `{ workflows: [...] }`). CLI: `workflow import|export`.
+
+`npm run cli -- diagnose [bindingId]` prints ownership candidates and Tier honesty (`resolved` / `offline` / `unsupported` / `missing`).
 
 ## Dial coalescing
 
