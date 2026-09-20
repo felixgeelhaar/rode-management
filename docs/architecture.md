@@ -60,10 +60,13 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 
 ## Stream Deck+ actions
 
-| Action | Rotate | Press | Feedback |
-|--------|--------|-------|----------|
-| Mic Gain | `AdjustGain` | `ToggleMute` | live value / `MUTE …` / `OFFLINE` |
+| Action | Rotate / Key | Press | Feedback |
+|--------|--------------|-------|----------|
+| Mic Gain | `AdjustGain` (or mute-only in MIDI mode) | `ToggleMute` | live value / `MUTE …` / `OFFLINE` |
 | Channel Level | `AdjustLevel` | reserved | live level / `OFFLINE` |
+| Mute Toggle | — | `ToggleMute` | `MUTED` / label / `OFFLINE` |
+| SMART Pad | — | `TriggerPad` | pad label / `FIRE` |
+| Record | — | Start/Stop recording | `REC` / `REC ●` |
 
 Default runtime uses the PodMic simulator (`RODE_CONTROL_ADAPTER=sim`).  
 Set `RODE_CONTROL_ADAPTER=rodecaster` for the Duo mix-bank simulator.  

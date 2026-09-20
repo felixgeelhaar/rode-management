@@ -40,9 +40,15 @@ Those remain on the Duo **simulator** (`RodecasterDuoSimAdapter`) or future prop
 RODE_CONTROL_ADAPTER=rodecaster-midi
 ```
 
-- Mic dial binding resolves to **Mute** (press = toggle; rotate AdjustGain stays unsupported)
-- Channel Level dials stay offline (honest Tier B)
-- Stable bindings: `mic-mute`, `pad-1`, `record`
+| Action | Behavior in MIDI mode |
+|--------|------------------------|
+| Mic Gain dial | Bound to **Mute** — press toggles mute; rotate shows `MUTE ONLY` |
+| Mute Toggle key | `ToggleMute` on `mic-mute` |
+| SMART Pad key | `TriggerPad` on `pad-1` (override via settings `bindingId`) |
+| Record key | Start/stop on `record` |
+| Channel Level dial | Offline (Level not on official MIDI) |
+
+Stable bindings: `my-mic-gain` (Mute), `mic-mute`, `pad-1`, `record`.
 
 ## Hardware next step
 

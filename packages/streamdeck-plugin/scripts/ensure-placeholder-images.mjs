@@ -18,6 +18,12 @@ const targets = [
   "imgs/actions/mic-gain/key.png",
   "imgs/actions/channel-level/icon.png",
   "imgs/actions/channel-level/key.png",
+  "imgs/actions/mute-toggle/icon.png",
+  "imgs/actions/mute-toggle/key.png",
+  "imgs/actions/pad-trigger/icon.png",
+  "imgs/actions/pad-trigger/key.png",
+  "imgs/actions/record-toggle/icon.png",
+  "imgs/actions/record-toggle/key.png",
 ];
 
 for (const relative of targets) {

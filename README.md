@@ -66,6 +66,8 @@ RODE_CONTROL_ADAPTER=rodecaster
 RODE_CONTROL_ADAPTER=rodecaster-midi
 ```
 
+Key actions (Mute / SMART Pad / Record) work in MIDI mode; Channel Level dials stay offline by design.
+
 ## Workspace
 
 ```text

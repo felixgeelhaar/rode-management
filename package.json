@@ -12,7 +12,7 @@
   "scripts": {
     "build": "npm run build -w @rode-control/core && npm run build -w @rode-control/adapter-podmic-usb && npm run build -w @rode-control/adapter-rodecaster-duo && npm run build -w @rode-control/streamdeck-plugin",
     "test": "npm run build -w @rode-control/core && npm run test -w @rode-control/core && npm run test -w @rode-control/adapter-podmic-usb && npm run test -w @rode-control/adapter-rodecaster-duo",
-    "typecheck": "npm run typecheck -w @rode-control/core && npm run typecheck -w @rode-control/adapter-podmic-usb && npm run typecheck -w @rode-control/adapter-rodecaster-duo && npm run typecheck -w @rode-control/streamdeck-plugin",
+    "typecheck": "npm run build -w @rode-control/core && npm run build -w @rode-control/adapter-podmic-usb && npm run build -w @rode-control/adapter-rodecaster-duo && npm run typecheck -w @rode-control/core && npm run typecheck -w @rode-control/adapter-podmic-usb && npm run typecheck -w @rode-control/adapter-rodecaster-duo && npm run typecheck -w @rode-control/streamdeck-plugin",
     "demo:vertical-slice": "npm run demo:vertical-slice -w @rode-control/adapter-podmic-usb",
     "demo:mix-bank": "npm run demo:mix-bank -w @rode-control/adapter-rodecaster-duo",
     "demo:midi": "npm run demo:midi -w @rode-control/adapter-rodecaster-duo"

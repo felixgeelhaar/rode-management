@@ -64,6 +64,18 @@ export class MicGainDialAction extends SingletonAction<MicGainSettings> {
     const bindingId = ev.payload.settings.bindingId ?? MIC_GAIN_BINDING_ID;
     const sensitivity = ev.payload.settings.sensitivity ?? 1;
 
+    // Tier B MIDI mode binds this dial to Mute — rotate has no gain target.
+    const resolved = core.resolveBinding(bindingId);
+    if (resolved?.capability.type === "Mute") {
+      if (ev.action.isDial()) {
+        await ev.action.setFeedback({
+          title: resolved.binding.label,
+          value: "MUTE ONLY",
+        });
+      }
+      return;
+    }
+
     const result = await core.execute({
       type: "AdjustGain",
       bindingId,

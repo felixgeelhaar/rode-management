@@ -16,8 +16,10 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
+      # typecheck builds workspace deps first (packages resolve via dist/)
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
       - run: npm run demo:vertical-slice
       - run: npm run demo:mix-bank
+      - run: npm run demo:midi
