@@ -56,9 +56,13 @@ describe("RodecasterDuoMidiAdapter", () => {
       createBinding("game-level", "GAME", "Level", { sourceHint: "Game" }),
     );
 
-    // No Level capability is published by the MIDI adapter, so binding stays unresolved.
+    // No Level capability is published by the MIDI adapter — Tier B honesty.
     expect(core.resolveBinding("game-level")).toBeUndefined();
-    expect(core.getControlSurface("game-level").valueText).toBe("OFFLINE");
+    expect(core.getControlSurface("game-level")).toEqual({
+      label: "GAME",
+      valueText: "N/A",
+      availability: "unsupported",
+    });
   });
 
   it("triggers SMART pads and toggles record over MIDI", async () => {

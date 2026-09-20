@@ -24,6 +24,7 @@ npm test
 npm run demo:vertical-slice
 npm run demo:mix-bank
 npm run demo:midi
+npm run demo:topology
 npm run build
 ```
 
@@ -46,7 +47,14 @@ dial press on MIC → mute retarget
 
 ```text
 mute / listen / SMART pads / record over documented MIDI CCs
-levels + gain intentionally unsupported
+levels + gain intentionally N/A (not offline)
+```
+
+### Dual-adapter topology (no hardware)
+
+```text
+PodMic USB sim + Duo sim together
+My Mic / Gain prefers mixer ownership when both match
 ```
 
 ### Stream Deck plugin
@@ -64,9 +72,12 @@ RODE_CONTROL_ADAPTER=rodecaster
 
 # Official MIDI Tier B (mock transport until a real port is wired)
 RODE_CONTROL_ADAPTER=rodecaster-midi
+
+# Dual-adapter topology (mixer-preferred Gain)
+RODE_CONTROL_ADAPTER=topology
 ```
 
-Key actions (Mute / SMART Pad / Record) work in MIDI mode; Channel Level dials stay offline by design.
+Key actions (Mute / Listen / SMART Pad / Record) work in MIDI mode; Channel Level dials show `N/A` by design on Tier B.
 
 ## Workspace
 

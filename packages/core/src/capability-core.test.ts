@@ -387,4 +387,49 @@ describe("CapabilityCore vertical slice", () => {
     // Same logical control identity; only capability ownership differs.
     expect(usbSurface.label).toBe(mixerSurface.label);
   });
+
+  it("reports unsupported (not offline) when live devices lack the capability", async () => {
+    const adapter = new FakeMicAdapter();
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding({
+      id: "game-level",
+      label: "GAME",
+      capabilityType: "Level",
+      sourceHint: "Game",
+    });
+
+    expect(core.resolveBinding("game-level")).toBeUndefined();
+    expect(core.getControlSurface("game-level")).toEqual({
+      label: "GAME",
+      valueText: "N/A",
+      availability: "unsupported",
+    });
+  });
+
+  it("prefers mixer-owned Gain when USB mic and RØDECaster both match", async () => {
+    const core = new CapabilityCore();
+    const usb = new FakeMicAdapter();
+    core.registerAdapter(usb);
+    core.registerAdapter(createMixerAdapter());
+    await core.start();
+
+    core.setTopology({
+      edges: [{ from: "mic", to: "input-1", relation: "feeds" }],
+    });
+
+    core.upsertBinding(
+      createMicGainBinding({
+        label: "My Mic",
+        sourceHint: "PodMic",
+      }),
+    );
+
+    const resolved = core.resolveBinding("my-mic-gain");
+    expect(resolved?.device.family).toBe("rodecaster");
+    expect(resolved?.endpoint.kind).toBe("channel");
+    expect(resolved?.endpoint.id).toBe("input-1");
+    expect(core.getControlSurface("my-mic-gain").valueText).toBe("48 dB");
+  });
 });

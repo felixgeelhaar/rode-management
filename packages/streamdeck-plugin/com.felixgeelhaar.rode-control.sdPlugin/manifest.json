@@ -2,12 +2,12 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "RØDE Control",
-  "Version": "0.3.0.0",
+  "Version": "0.4.0.0",
   "Author": "Felix Geelhaar",
   "Category": "RØDE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Dial gain/levels plus mute, SMART pads, and record (simulators / official MIDI Tier B).",
+  "Description": "Capability-driven Stream Deck+ controls for your RØDE audio setup. Dial gain/levels, mute/listen, SMART pads, and record — with honest Tier B MIDI and dual-adapter topology.",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -60,7 +60,7 @@
         "layout": "$B1",
         "TriggerDescription": {
           "Rotate": "Adjust level",
-          "Push": "Reserved",
+          "Push": "Toggle mute",
           "Touch": "Show channel controls (future)"
         }
       },
@@ -84,6 +84,21 @@
           "TitleAlignment": "middle",
           "FontSize": 12,
           "Title": "MUTE"
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.listen-toggle",
+      "Name": "Listen Toggle",
+      "Icon": "imgs/actions/listen-toggle/icon",
+      "Tooltip": "Toggle Listen/solo on a RØDECaster channel (official MIDI Tier B)",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/listen-toggle/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "LISTEN"
         }
       ]
     },
