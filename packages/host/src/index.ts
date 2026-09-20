@@ -16,3 +16,4 @@ export {
   resetCapabilityCoreSingleton,
 } from "./bootstrap.js";
 export type { AdapterMode, BootstrapOptions } from "./bootstrap.js";
+export { builtInWorkflows } from "./workflows.js";
