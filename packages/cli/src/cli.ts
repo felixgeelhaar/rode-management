@@ -17,6 +17,7 @@ import type { ControlCommand } from "@rode-control/core";
 import {
   parseWorkflowProfiles,
   serializeWorkflowProfile,
+  suggestCreatorBindings,
 } from "@rode-control/core";
 import {
   createCapabilityCore,
@@ -29,11 +30,13 @@ function usage(): never {
   rode-control devices
   rode-control surface [bindingId]
   rode-control diagnose [bindingId]
+  rode-control layout suggest
   rode-control exec <CommandType> <bindingId> [--delta N] [--value V]
   rode-control workflow list
   rode-control workflow apply <id>
   rode-control workflow capture <id> [label]
   rode-control workflow export <id> [path]
+  rode-control workflow export-all [path]
   rode-control workflow import <path>
   rode-control export [path]
   rode-control import <path> [--replace]
@@ -42,6 +45,7 @@ Env:
   RODE_CONTROL_ADAPTER=sim|rodecaster|rodecaster-midi|topology|none
   RODE_CONTROL_BINDINGS_PATH=./layout.json
   RODE_CONTROL_WORKFLOWS_PATH=./workflows.json
+  RODE_CONTROL_WORKFLOWS_AUTOSAVE=./workflows.json
 `);
   process.exit(1);
 }
@@ -110,6 +114,17 @@ async function main(): Promise<void> {
         }
         break;
       }
+      case "layout": {
+        const sub = argv[1];
+        if (sub !== "suggest") usage();
+        const suggestions = suggestCreatorBindings(core.listDevices());
+        for (const suggestion of suggestions) {
+          console.log(
+            `${suggestion.bank}\t${suggestion.role}\t${suggestion.binding.id}\t${suggestion.binding.label}\t${suggestion.binding.capabilityType}`,
+          );
+        }
+        break;
+      }
       case "exec": {
         const type = argv[1];
         const bindingId = argv[2];
@@ -164,6 +179,14 @@ async function main(): Promise<void> {
           const path = argv[3] ?? `${id}.workflow.json`;
           await writeFile(path, serializeWorkflowProfile(workflow), "utf8");
           console.log(`Wrote ${path}`);
+          break;
+        }
+        if (sub === "export-all") {
+          const path = argv[2] ?? "rode-workflows.json";
+          await writeFile(path, core.exportWorkflowsJson(), "utf8");
+          console.log(
+            `Wrote ${path} (${core.listWorkflows().length} workflows)`,
+          );
           break;
         }
         if (sub === "import") {

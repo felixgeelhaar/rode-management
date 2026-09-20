@@ -85,10 +85,12 @@ RODE_CONTROL_BINDINGS_REPLACE=1
 
 # Optional: load/override workflow presets from disk
 RODE_CONTROL_WORKFLOWS_PATH=./examples/workflow-streaming.json
+RODE_CONTROL_WORKFLOWS_AUTOSAVE=./my-workflows.json
 ```
 
 ```bash
 npm run cli -- diagnose my-mic-gain
+RODE_CONTROL_ADAPTER=rodecaster npm run cli -- layout suggest
 RODE_CONTROL_ADAPTER=rodecaster npm run cli -- workflow import ./examples/workflow-streaming.json
 ```
 

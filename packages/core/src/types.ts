@@ -171,6 +171,7 @@ export type CoreEvent =
       ok: boolean;
       applied: number;
       failed: number;
-    };
+    }
+  | { type: "workflow-changed"; workflowId: string };
 
 export type CoreEventListener = (event: CoreEvent) => void;

@@ -113,4 +113,21 @@ describe("createCapabilityCore", () => {
     expect(core.getWorkflow("podcast")?.id).toBe("podcast");
     await core.stop();
   });
+
+  it("autosaves workflow bundle after capture", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "rode-wf-auto-"));
+    const path = join(dir, "workflows.json");
+    const core = await createCapabilityCore({
+      mode: "rodecaster",
+      workflowsAutosavePath: path,
+    });
+    core.captureWorkflow("custom", "Custom");
+    await new Promise((r) => setTimeout(r, 350));
+    const saved = JSON.parse(await readFile(path, "utf8")) as {
+      workflows: Array<{ id: string }>;
+    };
+    expect(saved.workflows.some((w) => w.id === "custom")).toBe(true);
+    expect(saved.workflows.some((w) => w.id === "streaming")).toBe(true);
+    await core.stop();
+  });
 });

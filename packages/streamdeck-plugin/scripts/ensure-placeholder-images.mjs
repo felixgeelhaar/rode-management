@@ -34,6 +34,8 @@ const targets = [
   "imgs/actions/record-toggle/key.png",
   "imgs/actions/apply-workflow/icon.png",
   "imgs/actions/apply-workflow/key.png",
+  "imgs/actions/capture-workflow/icon.png",
+  "imgs/actions/capture-workflow/key.png",
 ];
 
 for (const relative of targets) {

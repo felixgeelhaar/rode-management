@@ -40,6 +40,26 @@ export function serializeWorkflowProfile(profile: WorkflowProfile): string {
   return `${JSON.stringify(profile, null, 2)}\n`;
 }
 
+/** Bundle multiple workflows for disk persistence / sharing. */
+export function serializeWorkflowBundle(workflows: WorkflowProfile[]): string {
+  return `${JSON.stringify(
+    {
+      version: 1,
+      workflows: workflows.map((workflow) => ({
+        version: workflow.version,
+        id: workflow.id,
+        label: workflow.label,
+        ...(workflow.description !== undefined
+          ? { description: workflow.description }
+          : {}),
+        steps: workflow.steps.map((step) => ({ ...step })),
+      })),
+    },
+    null,
+    2,
+  )}\n`;
+}
+
 export function parseWorkflowProfile(json: string): WorkflowProfile {
   let raw: unknown;
   try {

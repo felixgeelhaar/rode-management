@@ -242,4 +242,24 @@ describe("workflow presets", () => {
     );
     expect(bundle[0]?.id).toBe("c");
   });
+
+  it("emits workflow-changed when capturing", async () => {
+    const core = new CapabilityCore({ dialCoalesceMs: 0 });
+    core.registerAdapter(new FakeMixAdapter());
+    await core.start();
+    core.upsertBinding(
+      createMicGainBinding({ label: "MIC", sourceHint: "PodMic" }),
+    );
+
+    const events: string[] = [];
+    core.subscribe((event) => {
+      if (event.type === "workflow-changed") {
+        events.push(event.workflowId);
+      }
+    });
+
+    core.captureWorkflow("custom", "Custom");
+    expect(events).toContain("custom");
+    expect(core.exportWorkflowsJson()).toContain('"custom"');
+  });
 });

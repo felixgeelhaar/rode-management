@@ -45,6 +45,8 @@ export interface BootstrapOptions {
    * Merged after built-ins so file entries override matching ids.
    */
   workflowsPath?: string;
+  /** When set, write the workflow bundle after capture/upsert (debounced). */
+  workflowsAutosavePath?: string;
   dialCoalesceMs?: number;
 }
 
@@ -59,6 +61,7 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   RODE_CONTROL_BINDINGS_REPLACE=1
  *   RODE_CONTROL_BINDINGS_AUTOSAVE
  *   RODE_CONTROL_WORKFLOWS_PATH
+ *   RODE_CONTROL_WORKFLOWS_AUTOSAVE
  */
 export async function createCapabilityCore(
   options: BootstrapOptions = {},
@@ -75,6 +78,9 @@ export async function createCapabilityCore(
     options.bindingsAutosavePath ?? process.env.RODE_CONTROL_BINDINGS_AUTOSAVE;
   const workflowsPath =
     options.workflowsPath ?? process.env.RODE_CONTROL_WORKFLOWS_PATH;
+  const workflowsAutosavePath =
+    options.workflowsAutosavePath ??
+    process.env.RODE_CONTROL_WORKFLOWS_AUTOSAVE;
 
   const core = new Core({
     preferMixerOwnership: true,
@@ -136,6 +142,10 @@ export async function createCapabilityCore(
     attachAutosave(core, autosavePath, mode);
   }
 
+  if (workflowsAutosavePath) {
+    attachWorkflowAutosave(core, workflowsAutosavePath);
+  }
+
   return core;
 }
 
@@ -156,6 +166,21 @@ function attachAutosave(
       event.type === "binding-online" ||
       event.type === "binding-offline"
     ) {
+      schedule();
+    }
+  });
+}
+
+function attachWorkflowAutosave(core: CapabilityCore, path: string): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      void writeFile(path, core.exportWorkflowsJson(), "utf8");
+    }, 250);
+  };
+  core.subscribe((event) => {
+    if (event.type === "workflow-changed") {
       schedule();
     }
   });

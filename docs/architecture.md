@@ -42,6 +42,7 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 | 5 Second client (CLI) | `@rode-control/cli` + shared `@rode-control/host` bootstrap |
 | 5b Workflow presets | Built-in Streaming/Podcast workflows + Apply Workflow key |
 | 5c Diagnose / workflow files / key PI | `diagnose` CLI, `RODE_CONTROL_WORKFLOWS_PATH`, key DidReceiveSettings |
+| 5d Capture + layout suggest | Capture Workflow key, workflow autosave, `layout suggest` |
 | 5+ Ecosystem / workflows | Not started |
 
 ## Adapter contract
@@ -76,9 +77,10 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 
 ## Workflow presets
 
-Product-level workflows (`streaming`, `podcast`) store absolute values across bindings. Apply via `ApplyWorkflow` / Stream Deck **Apply Workflow** key / `npm run cli -- workflow apply streaming`. Capture the live surface with `workflow capture`. Load extra/override workflows from `RODE_CONTROL_WORKFLOWS_PATH` (single profile, array, or `{ workflows: [...] }`). CLI: `workflow import|export`.
+Product-level workflows (`streaming`, `podcast`) store absolute values across bindings. Apply via `ApplyWorkflow` / Stream Deck **Apply Workflow** key / `npm run cli -- workflow apply streaming`. Capture the live surface with Stream Deck **Capture Workflow**, `workflow capture`, or CLI. Load extra/override workflows from `RODE_CONTROL_WORKFLOWS_PATH` (single profile, array, or `{ workflows: [...] }`). Persist captures with `RODE_CONTROL_WORKFLOWS_AUTOSAVE`. CLI: `workflow import|export|export-all`.
 
-`npm run cli -- diagnose [bindingId]` prints ownership candidates and Tier honesty (`resolved` / `offline` / `unsupported` / `missing`).
+`npm run cli -- diagnose [bindingId]` prints ownership candidates and Tier honesty (`resolved` / `offline` / `unsupported` / `missing`).  
+`npm run cli -- layout suggest` prints auto-layout proposals from the discovered device graph.
 
 ## Dial coalescing
 
@@ -97,6 +99,8 @@ Rapid `AdjustGain` / `AdjustLevel` ticks for the same binding are batched within
 | Compressor | — | `ToggleProcessing` (Compression) | `COMP ●` / `COMP` |
 | SMART Pad | — | `TriggerPad` | pad label / brief `FIRE` |
 | Record | — | Start/Stop recording | `REC` / `REC ●` |
+| Apply Workflow | — | `ApplyWorkflow` | workflow label / brief `OK` |
+| Capture Workflow | — | snapshot surface → workflow id | `CAP …` / `OK N` |
 
 Property Inspector (`ui/property-inspector.html`) edits `bindingId` and dial `sensitivity` per action instance.
 

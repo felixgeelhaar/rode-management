@@ -21,6 +21,7 @@ import type {
 } from "./types.js";
 import {
   captureWorkflowFromBindings,
+  serializeWorkflowBundle,
   type WorkflowProfile,
 } from "./workflow.js";
 
@@ -228,6 +229,7 @@ export class CapabilityCore {
       ...workflow,
       steps: workflow.steps.map((step) => ({ ...step })),
     });
+    this.emit({ type: "workflow-changed", workflowId: workflow.id });
   }
 
   getWorkflow(workflowId: string): WorkflowProfile | undefined {
@@ -244,6 +246,11 @@ export class CapabilityCore {
       ...workflow,
       steps: workflow.steps.map((step) => ({ ...step })),
     }));
+  }
+
+  /** Serialize all registered workflows as a versioned bundle. */
+  exportWorkflowsJson(): string {
+    return serializeWorkflowBundle(this.listWorkflows());
   }
 
   /** Snapshot current binding values into a workflow preset. */

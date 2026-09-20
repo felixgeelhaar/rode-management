@@ -39,8 +39,11 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
   override async onDidReceiveSettings(
     ev: DidReceiveSettingsEvent<LevelSettings>,
   ): Promise<void> {
-    await this.feedback.onDidReceiveSettings(ev, {
-      defaultBindingId: GAME_LEVEL_BINDING_ID,
+    const bindingId = this.resolveBindingId(ev.payload.settings);
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
       includeMuteSibling: true,
       render: (action, id) => this.render(action, id),
     });

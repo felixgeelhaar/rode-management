@@ -23,6 +23,7 @@ export {
   createWorkflowProfile,
   parseWorkflowProfile,
   parseWorkflowProfiles,
+  serializeWorkflowBundle,
   serializeWorkflowProfile,
 } from "./workflow.js";
 export type { WorkflowProfile, WorkflowStep } from "./workflow.js";
