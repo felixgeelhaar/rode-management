@@ -26,6 +26,8 @@ npm run demo:mix-bank
 npm run demo:midi
 npm run demo:topology
 npm run demo:bindings
+npm run cli -- status
+RODE_CONTROL_ADAPTER=rodecaster npm run cli -- surface headphones-level
 npm run build
 ```
 
@@ -90,7 +92,10 @@ Key actions (Mute / Listen / SMART Pad / Record / HPF / COMP) work in the approp
 packages/core                      Capability core + domain model
 packages/adapters/podmic-usb       PodMic USB sim + protocol stub
 packages/adapters/rodecaster-duo   RØDECaster Duo sim + official MIDI adapter
-packages/streamdeck-plugin         Stream Deck+ Mic Gain + Channel Level
+packages/host                      Shared bootstrap for plugin + CLI
+packages/cli                       Terminal client (second surface)
+packages/streamdeck-plugin         Stream Deck+ actions
+examples/                          Sample binding profiles
 docs/                              Product intent, architecture, Phase 0, MIDI Tier B
 ```
 

@@ -25,7 +25,9 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 | `@rode-control/core` | Domain types, `DeviceAdapter` contract, `CapabilityCore`, binding helpers, layout suggestions |
 | `@rode-control/adapter-podmic-usb` | PodMic USB sim adapter (gain / monitor / mute / HPF / compressor) + protocol research stub |
 | `@rode-control/adapter-rodecaster-duo` | Duo **sim** (mix levels + §43) and **official MIDI** Tier B adapter (mute / listen / pads / record) |
-| `@rode-control/streamdeck-plugin` | Stream Deck+ Mic Gain (+ mute press) and Channel Level dials |
+| `@rode-control/host` | Shared bootstrap (adapter modes, seeds, binding profile load) |
+| `@rode-control/cli` | Terminal client over the same core (`npm run cli -- …`) |
+| `@rode-control/streamdeck-plugin` | Stream Deck+ dials + keys |
 
 ## Phase alignment
 
@@ -36,8 +38,9 @@ Critical validation (intent §43): the Stream Deck binding `"My Mic" / Gain` mus
 | 2 Capability depth | Monitor, mute, HPF, compressor on PodMic sim **and** Stream Deck (monitor dial + HPF/COMP keys) |
 | 3 RØDECaster validation | Duo simulator + mix bank + §43 ownership tests |
 | 3b Official MIDI (Tier B) | `RodecasterDuoMidiAdapter` + mock transport — mute/listen/pads/record ([midi-tier-b.md](./midi-tier-b.md)) |
-| 4 Creator surface (software) | Listen key, Tier honesty (`N/A`), dual-adapter topology mode, channel dial mute press |
-| 4+ Ecosystem / workflows | Not started |
+| 4 Creator surface (software) | Listen, Tier honesty, topology, mic depth, binding profiles, property inspector |
+| 5 Second client (CLI) | `@rode-control/cli` + shared `@rode-control/host` bootstrap |
+| 5+ Ecosystem / workflows | Not started |
 
 ## Adapter contract
 
@@ -67,7 +70,11 @@ Optimistic UI is allowed for feel, but displays reconcile to authoritative adapt
 
 ## Binding persistence
 
-`CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Demo: `npm run demo:bindings`.
+`CapabilityCore.exportProfile()` / `importProfile()` serialize logical bindings (+ optional topology) as a versioned JSON document (`BindingProfile` v1). The Stream Deck / CLI host loads an optional file from `RODE_CONTROL_BINDINGS_PATH` after seeding (set `RODE_CONTROL_BINDINGS_REPLACE=1` to replace seeds). Set `RODE_CONTROL_BINDINGS_AUTOSAVE` to persist binding changes back to disk. Demo: `npm run demo:bindings`.
+
+## Dial coalescing
+
+Rapid `AdjustGain` / `AdjustLevel` ticks for the same binding are batched within ~24 ms into a single adapter write (`dialCoalesceMs`). Non-adjust commands flush pending dial batches first.
 
 ## Stream Deck+ actions
 

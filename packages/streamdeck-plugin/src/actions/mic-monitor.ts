@@ -1,55 +1,48 @@
 import {
   action,
   DialRotateEvent,
+  DidReceiveSettingsEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, MIC_MONITOR_BINDING_ID } from "../core-host.js";
 
 type MonitorSettings = {
   bindingId?: string;
-  /** Percent change per dial tick */
   sensitivity?: number;
 };
 
-/**
- * Stream Deck+ dial for mic monitor / headphone cue level.
- *
- * Rotate → AdjustLevel on a Monitoring binding
- * Display → live percent / OFFLINE / N/A
- */
 @action({ UUID: "com.felixgeelhaar.rode-control.mic-monitor" })
 export class MicMonitorDialAction extends SingletonAction<MonitorSettings> {
-  private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly feedback = new BindingFeedbackSession();
 
   override async onWillAppear(
     ev: WillAppearEvent<MonitorSettings>,
   ): Promise<void> {
     const bindingId = ev.payload.settings.bindingId ?? MIC_MONITOR_BINDING_ID;
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        (event.type === "state-changed" &&
-          event.resolved.binding.id === bindingId) ||
-        (event.type === "binding-offline" && event.bindingId === bindingId) ||
-        (event.type === "binding-online" && event.bindingId === bindingId)
-      ) {
-        void this.render(ev.action, bindingId);
-      }
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
+      render: (action, id) => this.render(action, id),
     });
+  }
 
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, bindingId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<MonitorSettings>,
+  ): Promise<void> {
+    await this.feedback.onDidReceiveSettings(ev, {
+      defaultBindingId: MIC_MONITOR_BINDING_ID,
+      render: (action, id) => this.render(action, id),
+    });
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<MonitorSettings>,
   ): Promise<void> {
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.feedback.onWillDisappear(ev);
   }
 
   override async onDialRotate(
@@ -90,9 +83,7 @@ export class MicMonitorDialAction extends SingletonAction<MonitorSettings> {
     actionRef: WillAppearEvent<MonitorSettings>["action"],
     bindingId: string,
   ): Promise<void> {
-    if (!actionRef.isDial()) {
-      return;
-    }
+    if (!actionRef.isDial()) return;
     const core = await getCapabilityCore();
     const surface = core.getControlSurface(bindingId);
     let value = surface.valueText;
@@ -101,9 +92,6 @@ export class MicMonitorDialAction extends SingletonAction<MonitorSettings> {
     } else if (surface.availability === "unsupported") {
       value = "N/A";
     }
-    await actionRef.setFeedback({
-      title: surface.label,
-      value,
-    });
+    await actionRef.setFeedback({ title: surface.label, value });
   }
 }

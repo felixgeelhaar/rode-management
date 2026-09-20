@@ -28,7 +28,23 @@ export interface CapabilityCoreOptions {
    * logical control (RØDECaster-centered topologies). Default true.
    */
   preferMixerOwnership?: boolean;
+  /**
+   * Coalesce rapid AdjustGain / AdjustLevel commands for the same binding
+   * within this window (ms). `0` disables. Default `24`.
+   */
+  dialCoalesceMs?: number;
 }
+
+type PendingDialAdjust = {
+  type: "AdjustGain" | "AdjustLevel";
+  bindingId: string;
+  delta: number;
+  timer: ReturnType<typeof setTimeout>;
+  waiters: Array<{
+    resolve: (result: CommandResult) => void;
+    reject: (error: unknown) => void;
+  }>;
+};
 
 /**
  * Central control core: device graph, capability resolution, bindings, and state sync.
@@ -43,11 +59,13 @@ export class CapabilityCore {
   private readonly unsubscribers: Array<() => void> = [];
   private readonly options: Required<CapabilityCoreOptions>;
   private topology: Topology = { edges: [] };
+  private readonly pendingDialAdjusts = new Map<string, PendingDialAdjust>();
 
   constructor(options: CapabilityCoreOptions = {}) {
     this.options = {
       retainOfflineBindings: options.retainOfflineBindings ?? true,
       preferMixerOwnership: options.preferMixerOwnership ?? true,
+      dialCoalesceMs: options.dialCoalesceMs ?? 24,
     };
   }
 
@@ -91,6 +109,7 @@ export class CapabilityCore {
   }
 
   async stop(): Promise<void> {
+    await this.flushPendingDialAdjusts();
     for (const unsubscribe of this.unsubscribers.splice(0)) {
       unsubscribe();
     }
@@ -199,6 +218,84 @@ export class CapabilityCore {
   }
 
   async execute(command: ControlCommand): Promise<CommandResult> {
+    if (
+      (command.type === "AdjustGain" || command.type === "AdjustLevel") &&
+      this.options.dialCoalesceMs > 0
+    ) {
+      return this.enqueueDialAdjust(command);
+    }
+
+    if (
+      command.type !== "AdjustGain" &&
+      command.type !== "AdjustLevel" &&
+      this.pendingDialAdjusts.size > 0
+    ) {
+      await this.flushPendingDialAdjusts();
+    }
+
+    return this.executeImmediate(command);
+  }
+
+  private enqueueDialAdjust(
+    command: Extract<ControlCommand, { type: "AdjustGain" | "AdjustLevel" }>,
+  ): Promise<CommandResult> {
+    const key = `${command.type}:${command.bindingId}`;
+    const existing = this.pendingDialAdjusts.get(key);
+
+    return new Promise<CommandResult>((resolve, reject) => {
+      if (existing) {
+        existing.delta += command.delta;
+        existing.waiters.push({ resolve, reject });
+        clearTimeout(existing.timer);
+        existing.timer = setTimeout(() => {
+          void this.flushDialAdjust(key);
+        }, this.options.dialCoalesceMs);
+        return;
+      }
+
+      const entry: PendingDialAdjust = {
+        type: command.type,
+        bindingId: command.bindingId,
+        delta: command.delta,
+        waiters: [{ resolve, reject }],
+        timer: setTimeout(() => {
+          void this.flushDialAdjust(key);
+        }, this.options.dialCoalesceMs),
+      };
+      this.pendingDialAdjusts.set(key, entry);
+    });
+  }
+
+  private async flushDialAdjust(key: string): Promise<void> {
+    const pending = this.pendingDialAdjusts.get(key);
+    if (!pending) {
+      return;
+    }
+    this.pendingDialAdjusts.delete(key);
+    clearTimeout(pending.timer);
+
+    try {
+      const result = await this.executeImmediate({
+        type: pending.type,
+        bindingId: pending.bindingId,
+        delta: pending.delta,
+      });
+      for (const waiter of pending.waiters) {
+        waiter.resolve(result);
+      }
+    } catch (err) {
+      for (const waiter of pending.waiters) {
+        waiter.reject(err);
+      }
+    }
+  }
+
+  private async flushPendingDialAdjusts(): Promise<void> {
+    const keys = [...this.pendingDialAdjusts.keys()];
+    await Promise.all(keys.map((key) => this.flushDialAdjust(key)));
+  }
+
+  private async executeImmediate(command: ControlCommand): Promise<CommandResult> {
     const bindingId = command.bindingId;
     const base = this.resolveBinding(bindingId);
 

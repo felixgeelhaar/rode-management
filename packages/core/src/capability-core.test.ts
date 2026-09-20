@@ -432,4 +432,29 @@ describe("CapabilityCore vertical slice", () => {
     expect(resolved?.endpoint.id).toBe("input-1");
     expect(core.getControlSurface("my-mic-gain").valueText).toBe("48 dB");
   });
+
+  it("coalesces rapid AdjustGain dial ticks into one adapter write", async () => {
+    const adapter = new FakeMicAdapter();
+    const writes: number[] = [];
+    const original = adapter.setCapabilityValue.bind(adapter);
+    adapter.setCapabilityValue = async (deviceId, capabilityId, value, source) => {
+      writes.push(typeof value === "number" ? value : -1);
+      return original(deviceId, capabilityId, value, source);
+    };
+
+    const core = new CapabilityCore({ dialCoalesceMs: 30 });
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding(createMicGainBinding());
+
+    const results = await Promise.all([
+      core.execute({ type: "AdjustGain", bindingId: "my-mic-gain", delta: 1 }),
+      core.execute({ type: "AdjustGain", bindingId: "my-mic-gain", delta: 1 }),
+      core.execute({ type: "AdjustGain", bindingId: "my-mic-gain", delta: 2 }),
+    ]);
+
+    expect(results.every((r) => r.ok)).toBe(true);
+    expect(writes).toEqual([28]); // 24 + 1 + 1 + 2
+    expect(core.getControlSurface("my-mic-gain").valueText).toBe("28 dB");
+  });
 });
