@@ -10,6 +10,9 @@ import type {
 import {
   listenAddress,
   muteAddress,
+  padBankAddress,
+  padBankFromMidiValue,
+  padBankToMidiValue,
   padTriggerAddress,
   recordAddress,
   RODECASTER_DUO_MIDI_MAP,
@@ -70,6 +73,8 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   private online = false;
   private device: Device | undefined;
   private recording = false;
+  /** 1-based SMART pad bank (official MIDI values are 0–7). */
+  private padBank = 1;
   private readonly strips: StripState[];
   private unsubscribeTransport: (() => void) | undefined;
 
@@ -235,6 +240,21 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   }
 
   private write(capabilityId: string, value: number | boolean | string): void {
+    if (capabilityId === "pad-bank") {
+      const bank = typeof value === "number" ? value : Number(value);
+      if (!Number.isFinite(bank)) {
+        throw new Error("Pad bank requires a number 1–8");
+      }
+      this.padBank = Math.min(8, Math.max(1, Math.round(bank)));
+      const address = padBankAddress();
+      this.transport.sendControlChange({
+        channel: address.channel,
+        controller: address.controller,
+        value: padBankToMidiValue(this.padBank),
+      });
+      return;
+    }
+
     if (capabilityId === "recording") {
       if (typeof value !== "boolean") {
         throw new Error("Recording requires a boolean");
@@ -308,6 +328,12 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     }
 
     const { controller, channel, value } = message;
+
+    if (controller === this.map.cc.padBank && channel === 1) {
+      this.padBank = padBankFromMidiValue(value);
+      this.emitState("pad-bank", this.stateFor("pad-bank", "hardware")!);
+      return;
+    }
 
     if (this.pulseToggle) {
       if (value === 0) {
@@ -395,6 +421,16 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       };
     }
 
+    if (capabilityId === "pad-bank") {
+      return {
+        capabilityId,
+        value: this.padBank,
+        availability,
+        timestamp,
+        source,
+      };
+    }
+
     if (/^pad-\d+:trigger$/.test(capabilityId)) {
       return {
         capabilityId,
@@ -469,7 +505,21 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       kind: "mix",
       label: "Transport",
       source: "RØDECaster",
-      capabilities: [booleanCapability("recording", "Recording")],
+      capabilities: [
+        booleanCapability("recording", "Recording"),
+        {
+          id: "pad-bank",
+          type: "PadBank",
+          readable: true,
+          writable: true,
+          observable: true,
+          valueType: "number",
+          minimum: 1,
+          maximum: 8,
+          step: 1,
+          metadata: { supportTier: "midi-tier-b", midiValue: "0-7" },
+        },
+      ],
     });
 
     return {
@@ -520,6 +570,8 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     }
     const recording = this.stateFor("recording", source);
     if (recording) this.emitState("recording", recording);
+    const padBank = this.stateFor("pad-bank", source);
+    if (padBank) this.emitState("pad-bank", padBank);
   }
 
   private emitState(capabilityId: string, state: CapabilityState): void {

@@ -15,6 +15,7 @@ It is **Tier B**: useful console actions, not full mixer automation.
 | Mute | CC 27 per strip channel | Bidirectional |
 | Listen | CC 24 per strip channel | Bidirectional |
 | SMART Pad trigger | CC 35 per pad channel | Host → device |
+| SMART Pad bank | CC 0, channel 1, values 0–7 | Host → device (banks 1–8). Absolute, not a pulse |
 | Record | CC 17, channel 1 | Bidirectional |
 
 Official RØDE MIDI uses **value `1` press pulses** (often followed by `0`). Hardware mode enables `pulseToggle` so outbound mute/listen/record send `1`, inbound `1` toggles, and inbound `0` is ignored.
@@ -77,7 +78,8 @@ RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- diagnose mic-mute
 | Mute Toggle key | `ToggleMute` on `mic-mute` |
 | Listen Toggle key | `ToggleListen` on `game-listen` |
 | SMART Pad key | `TriggerPad` on `pad-1` (override via settings `bindingId`) |
+| Pad Bank key | Cycles banks 1–8 (`SetPadBank` on `pad-bank`) |
 | Record key | Start/stop on `record` |
 | Channel Level dial | Surfaces **`N/A`** (Level not on official MIDI — not OFFLINE) |
 
-Stable bindings: `my-mic-gain` (Mute), `mic-mute`, `game-listen`, `pad-1`, `record`.
+Stable bindings: `my-mic-gain` (Mute), `mic-mute`, `game-listen`, `pad-1`, `pad-bank`, `record`.

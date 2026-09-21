@@ -343,6 +343,18 @@ function buildCommand(
     case "StartRecording":
     case "StopRecording":
       return { type, bindingId };
+    case "SetPadBank":
+      return {
+        type,
+        bindingId,
+        value: Number(value ?? "1"),
+      };
+    case "AdjustPadBank":
+      return {
+        type,
+        bindingId,
+        delta: Number(delta ?? "1"),
+      };
     case "ToggleProcessing":
       return {
         type,

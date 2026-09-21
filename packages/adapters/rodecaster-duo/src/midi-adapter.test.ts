@@ -158,4 +158,30 @@ describe("RodecasterDuoMidiAdapter", () => {
     expect(device?.metadata?.midiPulseToggle).toBe(false);
     await adapter.stop();
   });
+
+  it("selects SMART pad bank over CC 0 (values 0–7) even in pulse mode", async () => {
+    const transport = new MockMidiTransport("bank", false);
+    const adapter = new RodecasterDuoMidiAdapter({
+      transport,
+      pulseToggle: true,
+    });
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding(createBinding("pad-bank", "PAD BANK", "PadBank"));
+
+    const set = await core.execute({
+      type: "SetPadBank",
+      bindingId: "pad-bank",
+      value: 3,
+    });
+    expect(set.ok).toBe(true);
+    expect(core.getControlSurface("pad-bank").valueText).toBe("3");
+    expect(transport.sent.at(-1)).toEqual(
+      expect.objectContaining({ channel: 1, controller: 0, value: 2 }),
+    );
+
+    transport.injectIncoming({ channel: 1, controller: 0, value: 0 });
+    expect(core.getControlSurface("pad-bank").valueText).toBe("1");
+  });
 });

@@ -157,10 +157,21 @@ async function testMidiTierHonesty() {
 
     const pad = await core.execute({ type: "TriggerPad", bindingId: "pad-1" });
     assert(pad.ok, "pad fire ok");
+    const bank = await core.execute({
+      type: "SetPadBank",
+      bindingId: "pad-bank",
+      value: 3,
+    });
+    assert(bank.ok, "pad bank set");
+    assert(
+      core.getControlSurface("pad-bank").valueText === "3",
+      "pad bank shows 3",
+    );
     console.log("OK", {
       mute: core.getControlSurface("mic-mute").valueText,
       gameLevel: level,
       pad: pad.ok,
+      bank: core.getControlSurface("pad-bank").valueText,
     });
   } finally {
     await core.stop();

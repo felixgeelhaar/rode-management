@@ -27,6 +27,7 @@ export const HEADPHONES_LEVEL_BINDING_ID = "headphones-level";
 export const MIC_MUTE_BINDING_ID = "mic-mute";
 export const GAME_LISTEN_BINDING_ID = "game-listen";
 export const PAD_1_BINDING_ID = "pad-1";
+export const PAD_BANK_BINDING_ID = "pad-bank";
 export const RECORD_BINDING_ID = "record";
 
 export type AdapterMode =
@@ -433,6 +434,7 @@ function seedRodecasterMidiBindings(core: CapabilityCore): void {
     }),
   );
   core.upsertBinding(createBinding(PAD_1_BINDING_ID, "SMART Pad 1", "PadTrigger"));
+  core.upsertBinding(createBinding(PAD_BANK_BINDING_ID, "PAD BANK", "PadBank"));
   core.upsertBinding(createBinding(RECORD_BINDING_ID, "REC", "Recording"));
 
   core.upsertBinding(

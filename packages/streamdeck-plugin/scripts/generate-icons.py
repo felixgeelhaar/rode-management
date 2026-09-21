@@ -196,6 +196,24 @@ def icon_pad(size: int) -> Image.Image:
     return img
 
 
+def icon_pad_bank(size: int) -> Image.Image:
+    img, draw = canvas(size)
+    gap = size * 0.06
+    cell = size * 0.22
+    origin = size * 0.28
+    for row in range(2):
+        for col in range(2):
+            x = origin + col * (cell + gap)
+            y = origin + row * (cell + gap)
+            fill = AMBER if (row, col) == (0, 1) else MUTED
+            draw.rounded_rectangle(
+                [x, y, x + cell, y + cell],
+                radius=size // 18,
+                fill=fill,
+            )
+    return img
+
+
 def icon_record(size: int) -> Image.Image:
     img, draw = canvas(size)
     cx, cy = size // 2, size // 2
@@ -268,6 +286,7 @@ ACTIONS = {
     "hpf-toggle": icon_hpf,
     "compressor-toggle": icon_comp,
     "pad-trigger": icon_pad,
+    "pad-bank": icon_pad_bank,
     "record-toggle": icon_record,
     "apply-workflow": icon_apply_workflow,
     "capture-workflow": icon_capture_workflow,

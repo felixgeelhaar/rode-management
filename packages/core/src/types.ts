@@ -33,6 +33,7 @@ export type CapabilityType =
   | "Preset"
   | "Recording"
   | "PadTrigger"
+  | "PadBank"
   | "BatteryState";
 
 export type ValueType = "number" | "boolean" | "enum" | "string";
@@ -139,6 +140,8 @@ export type ControlCommand =
   | { type: "ApplyPreset"; bindingId: string; presetId: string }
   | { type: "ApplyWorkflow"; workflowId: string }
   | { type: "TriggerPad"; bindingId: string }
+  | { type: "SetPadBank"; bindingId: string; value: number }
+  | { type: "AdjustPadBank"; bindingId: string; delta: number }
   | { type: "StartRecording"; bindingId: string }
   | { type: "StopRecording"; bindingId: string };
 

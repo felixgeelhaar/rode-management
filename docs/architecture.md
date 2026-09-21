@@ -98,6 +98,7 @@ Rapid `AdjustGain` / `AdjustLevel` ticks for the same binding are batched within
 | High-Pass | — | `ToggleProcessing` (HPF) | `HPF ●` / `HPF` |
 | Compressor | — | `ToggleProcessing` (Compression) | `COMP ●` / `COMP` |
 | SMART Pad | — | `TriggerPad` | pad label / brief `FIRE` |
+| Pad Bank | — | Cycle banks 1–8 (`SetPadBank`) | `BANK n` |
 | Record | — | Start/Stop recording | `REC` / `REC ●` |
 | Apply Workflow | — | `ApplyWorkflow` | workflow label / brief `OK` |
 | Capture Workflow | — | snapshot surface → workflow id | `CAP …` / `OK N` |

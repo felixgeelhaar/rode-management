@@ -536,6 +536,10 @@ export class CapabilityCore {
           capabilityType: binding.capabilityType,
           value,
         };
+      case "PadBank":
+        return typeof value === "number"
+          ? { type: "SetPadBank", bindingId: binding.id, value }
+          : undefined;
       default:
         return undefined;
     }
@@ -1018,6 +1022,13 @@ export class CapabilityCore {
         return !(resolved.state.value === true);
       case "TriggerPad":
         return true;
+      case "SetPadBank":
+        return clampNumeric(command.value, resolved.capability);
+      case "AdjustPadBank": {
+        const current =
+          typeof resolved.state.value === "number" ? resolved.state.value : 1;
+        return clampNumeric(current + command.delta, resolved.capability);
+      }
       case "StartRecording":
         return true;
       case "StopRecording":
@@ -1081,6 +1092,9 @@ export class CapabilityCore {
         return base.capability.type === "Monitoring" ? "Monitoring" : "Level";
       case "TriggerPad":
         return "PadTrigger";
+      case "SetPadBank":
+      case "AdjustPadBank":
+        return "PadBank";
       case "StartRecording":
       case "StopRecording":
         return "Recording";
@@ -1232,6 +1246,7 @@ export function suggestCreatorBindings(devices: Device[]): SuggestedBinding[] {
       const mute = endpoint.capabilities.find((c) => c.type === "Mute");
       const monitor = endpoint.capabilities.find((c) => c.type === "Monitoring");
       const pad = endpoint.capabilities.find((c) => c.type === "PadTrigger");
+      const padBank = endpoint.capabilities.find((c) => c.type === "PadBank");
 
       const isMic =
         endpoint.kind === "microphone" ||
@@ -1378,6 +1393,22 @@ export function suggestCreatorBindings(devices: Device[]): SuggestedBinding[] {
             deviceId: device.id,
             endpointId: endpoint.id,
           }),
+        });
+      }
+
+      if (padBank) {
+        suggestions.push({
+          bank: "production",
+          role: "pad-bank",
+          binding: createBinding(
+            `${endpoint.id}:pad-bank`,
+            "PAD BANK",
+            "PadBank",
+            {
+              deviceId: device.id,
+              endpointId: endpoint.id,
+            },
+          ),
         });
       }
     }

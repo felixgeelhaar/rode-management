@@ -36,6 +36,9 @@ export {
   muteAddress,
   padTriggerAddress,
   recordAddress,
+  padBankAddress,
+  padBankFromMidiValue,
+  padBankToMidiValue,
 } from "./midi-map.js";
 export type {
   MidiCcAddress,

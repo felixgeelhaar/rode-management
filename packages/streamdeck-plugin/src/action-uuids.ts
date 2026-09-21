@@ -8,6 +8,7 @@ export const ACTION_UUIDS = {
   hpfToggle: "com.felixgeelhaar.rode-control.hpf-toggle",
   compressorToggle: "com.felixgeelhaar.rode-control.compressor-toggle",
   padTrigger: "com.felixgeelhaar.rode-control.pad-trigger",
+  padBank: "com.felixgeelhaar.rode-control.pad-bank",
   recordToggle: "com.felixgeelhaar.rode-control.record-toggle",
   applyWorkflow: "com.felixgeelhaar.rode-control.apply-workflow",
   captureWorkflow: "com.felixgeelhaar.rode-control.capture-workflow",
