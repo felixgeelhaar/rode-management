@@ -9,6 +9,7 @@ export {
 } from "./capability-core.js";
 export type {
   CapabilityCoreOptions,
+  BindingDiagnosis,
   SuggestedBinding,
 } from "./capability-core.js";
 export {

@@ -207,6 +207,45 @@ function resolveMidiModel(raw: string | RodecasterModel | undefined): Rodecaster
   return "duo";
 }
 
+export interface MidiRuntimeInfo {
+  /** True when hardware (or virtual) MIDI was requested. */
+  requested: boolean;
+  port?: string;
+  virtual: boolean;
+  model: RodecasterModel;
+  /** mock | hardware | virtual — inferred from env before open. */
+  intent: "mock" | "hardware" | "virtual";
+}
+
+/** Inspect MIDI-related env / bootstrap options without opening a port. */
+export function describeMidiRuntime(
+  options: BootstrapOptions = {},
+): MidiRuntimeInfo {
+  const port =
+    options.midiPort ?? process.env.RODE_CONTROL_MIDI_PORT ?? undefined;
+  const hardware =
+    options.midiHardware ??
+    (process.env.RODE_CONTROL_MIDI_HARDWARE === "1" || Boolean(port));
+  const virtual =
+    options.midiVirtual ?? process.env.RODE_CONTROL_MIDI_VIRTUAL === "1";
+  const model = resolveMidiModel(
+    options.midiModel ?? process.env.RODE_CONTROL_MIDI_MODEL,
+  );
+
+  let intent: MidiRuntimeInfo["intent"] = "mock";
+  if (hardware) {
+    intent = virtual ? "virtual" : "hardware";
+  }
+
+  return {
+    requested: hardware,
+    ...(port !== undefined ? { port } : {}),
+    virtual,
+    model,
+    intent,
+  };
+}
+
 function seedTopology(core: CapabilityCore): void {
   const devices = core.listDevices();
   const usbMic = devices

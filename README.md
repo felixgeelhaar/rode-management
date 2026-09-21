@@ -89,6 +89,14 @@ RODE_CONTROL_BINDINGS_PATH=./my-layout.json
 RODE_CONTROL_BINDINGS_REPLACE=1
 ```
 
+MIDI bring-up helpers:
+
+```bash
+npm run cli -- midi ports
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- status
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- diagnose mic-mute
+```
+
 Key actions (Mute / Listen / SMART Pad / Record / HPF / COMP) work in the appropriate modes. Channel Level dials show `N/A` on Tier B MIDI. Use the property inspector to point a Channel Level instance at `chat-level`, `music-level`, or `headphones-level`.
 
 ## Workspace

@@ -57,6 +57,20 @@ RODE_CONTROL_MIDI_VIRTUAL=1
 
 Setting `RODE_CONTROL_MIDI_PORT` alone also enables hardware (substring match, then RØDE port-name hints).
 
+### Bring-up CLI
+
+```bash
+# List OS MIDI inputs/outputs (does not open the console)
+npm run cli -- midi ports
+
+# Confirm mock vs hardware + transport name
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- status
+
+# Explain N/A vs OFFLINE / ownership for a binding
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- diagnose game-level
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- diagnose mic-mute
+```
+
 | Action | Behavior in MIDI mode |
 |--------|------------------------|
 | Mic Gain dial | Bound to **Mute** — press toggles mute; rotate shows `MUTE ONLY`; display `MUTED` / `LIVE` |

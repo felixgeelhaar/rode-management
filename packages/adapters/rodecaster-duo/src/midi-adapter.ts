@@ -488,6 +488,8 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       metadata: {
         controlTier: RODECASTER_MIDI_SUPPORT.tier,
         controlSurface: "official-midi",
+        midiTransport: this.transport.name,
+        midiPulseToggle: this.pulseToggle,
         supportedCapabilities: [...RODECASTER_MIDI_SUPPORT.supported],
         unsupportedCapabilities: [...RODECASTER_MIDI_SUPPORT.unsupported],
       },

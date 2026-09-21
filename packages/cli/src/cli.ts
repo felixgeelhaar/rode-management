@@ -5,6 +5,8 @@
  * Examples:
  *   npm run cli -- status
  *   npm run cli -- surface my-mic-gain
+ *   npm run cli -- diagnose mic-mute
+ *   npm run cli -- midi ports
  *   RODE_CONTROL_ADAPTER=rodecaster npm run cli -- exec AdjustLevel game-level --delta 2
  *   npm run cli -- export ./layout.json
  *   npm run cli -- import ./layout.json --replace
@@ -14,6 +16,8 @@ import { writeFile } from "node:fs/promises";
 import type { ControlCommand } from "@rode-control/core";
 import {
   createCapabilityCore,
+  describeMidiRuntime,
+  listHardwareMidiPorts,
   type AdapterMode,
 } from "@rode-control/host";
 
@@ -22,6 +26,8 @@ function usage(): never {
   rode-control status
   rode-control devices
   rode-control surface [bindingId]
+  rode-control diagnose [bindingId]
+  rode-control midi ports
   rode-control exec <CommandType> <bindingId> [--delta N] [--value V]
   rode-control export [path]
   rode-control import <path> [--replace]
@@ -45,10 +51,51 @@ function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(name);
 }
 
+async function listMidiPorts(): Promise<void> {
+  try {
+    const ports = await listHardwareMidiPorts();
+    console.log(
+      JSON.stringify(
+        {
+          inputs: ports.inputs,
+          outputs: ports.outputs,
+          hint:
+            "Set RODE_CONTROL_ADAPTER=rodecaster-midi and RODE_CONTROL_MIDI_PORT to a substring from inputs/outputs.",
+        },
+        null,
+        2,
+      ),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(
+      JSON.stringify(
+        {
+          inputs: [],
+          outputs: [],
+          error: message,
+          hint:
+            "MIDI enumeration needs an OS sequencer (ALSA/CoreMIDI). On a machine with a RØDECaster, enable MIDI Function and retry.",
+        },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = 1;
+  }
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv[0];
   if (!command) usage();
+
+  // Port listing must not open a hardware adapter (may fail without a console).
+  if (command === "midi") {
+    if (argv[1] !== "ports") usage();
+    await listMidiPorts();
+    return;
+  }
 
   const mode = (process.env.RODE_CONTROL_ADAPTER ?? "sim") as AdapterMode;
   const core = await createCapabilityCore({ mode });
@@ -56,13 +103,29 @@ async function main(): Promise<void> {
   try {
     switch (command) {
       case "status": {
+        const midiDevices = core
+          .listDevices()
+          .filter((d) => d.connection === "midi");
         console.log({
           adapter: mode,
+          midi:
+            mode === "rodecaster-midi"
+              ? {
+                  ...describeMidiRuntime(),
+                  transports: midiDevices.map((d) => ({
+                    id: d.id,
+                    model: d.model,
+                    transport: d.metadata?.midiTransport,
+                    pulseToggle: d.metadata?.midiPulseToggle,
+                  })),
+                }
+              : undefined,
           devices: core.listDevices().map((d) => ({
             id: d.id,
             model: d.model,
             family: d.family,
             status: d.status,
+            connection: d.connection,
           })),
           bindings: core.listBindings().length,
         });
@@ -71,6 +134,9 @@ async function main(): Promise<void> {
       case "devices": {
         for (const device of core.listDevices()) {
           console.log(`${device.model} [${device.family}] ${device.status}`);
+          if (device.metadata?.midiTransport) {
+            console.log(`  midi: ${String(device.metadata.midiTransport)}`);
+          }
           for (const endpoint of device.endpoints) {
             const caps = endpoint.capabilities.map((c) => c.type).join(", ");
             console.log(
@@ -86,6 +152,15 @@ async function main(): Promise<void> {
           : core.listBindings().map((b) => b.id);
         for (const id of ids) {
           console.log(id, core.getControlSurface(id));
+        }
+        break;
+      }
+      case "diagnose": {
+        const ids = argv[1]
+          ? [argv[1]]
+          : core.listBindings().map((b) => b.id);
+        for (const id of ids) {
+          console.log(JSON.stringify(core.diagnoseBinding(id), null, 2));
         }
         break;
       }

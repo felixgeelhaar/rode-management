@@ -148,4 +148,14 @@ describe("RodecasterDuoMidiAdapter", () => {
     adapter.simulatePhysicalMute(0);
     expect(core.getControlSurface("mic-mute").valueText).toBe("ON");
   });
+
+  it("advertises the active MIDI transport name on the device", async () => {
+    const transport = new MockMidiTransport("bring-up-mock", false);
+    const adapter = new RodecasterDuoMidiAdapter({ transport });
+    await adapter.start();
+    const device = adapter.listDevices()[0];
+    expect(device?.metadata?.midiTransport).toBe("bring-up-mock");
+    expect(device?.metadata?.midiPulseToggle).toBe(false);
+    await adapter.stop();
+  });
 });

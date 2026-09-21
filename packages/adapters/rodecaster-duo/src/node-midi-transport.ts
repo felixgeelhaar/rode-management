@@ -56,18 +56,35 @@ export function listSystemMidiPortNames(midi: {
   Input: new () => MidiInput;
   Output: new () => MidiOutput;
 }): { inputs: string[]; outputs: string[] } {
-  const input = new midi.Input();
-  const output = new midi.Output();
+  let input: MidiInput | undefined;
+  let output: MidiOutput | undefined;
   try {
+    input = new midi.Input();
+    output = new midi.Output();
     const inputs = Array.from({ length: input.getPortCount() }, (_, i) =>
-      input.getPortName(i),
+      input!.getPortName(i),
     );
     const outputs = Array.from({ length: output.getPortCount() }, (_, i) =>
-      output.getPortName(i),
+      output!.getPortName(i),
     );
     return { inputs, outputs };
+  } catch (err) {
+    throw new Error(
+      `System MIDI unavailable (no ALSA/CoreMIDI sequencer?). ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
   } finally {
-    // Ports were never opened; nothing to close on some bindings.
+    try {
+      input?.closePort();
+    } catch {
+      /* never opened */
+    }
+    try {
+      output?.closePort();
+    } catch {
+      /* never opened */
+    }
   }
 }
 

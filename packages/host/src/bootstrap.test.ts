@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   createCapabilityCore,
+  describeMidiRuntime,
   GAME_LEVEL_BINDING_ID,
   MIC_GAIN_BINDING_ID,
   resetCapabilityCoreSingleton,
@@ -43,6 +44,9 @@ describe("createCapabilityCore", () => {
     const device = core.listDevices()[0];
     expect(device?.connection).toBe("midi");
     expect(device?.metadata?.controlSurface).toBe("official-midi");
+    expect(device?.metadata?.midiTransport).toMatch(/Mock/i);
+    expect(device?.metadata?.midiPulseToggle).toBe(false);
+    expect(describeMidiRuntime({ midiHardware: false }).intent).toBe("mock");
     await core.stop();
   });
 

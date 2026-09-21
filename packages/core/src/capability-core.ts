@@ -35,6 +35,46 @@ export interface CapabilityCoreOptions {
   dialCoalesceMs?: number;
 }
 
+export interface BindingDiagnosis {
+  bindingId: string;
+  binding?: LogicalBinding;
+  status: "missing" | "resolved" | "offline" | "unsupported";
+  surface: {
+    label: string;
+    valueText: string;
+    availability: CapabilityState["availability"];
+  };
+  owner?: {
+    deviceId: string;
+    deviceModel: string;
+    deviceFamily: Device["family"];
+    deviceStatus: Device["status"];
+    endpointId: string;
+    endpointLabel: string;
+    endpointKind: Endpoint["kind"];
+    capabilityId: string;
+    capabilityType: CapabilityType;
+    value: CapabilityState["value"];
+    availability: CapabilityState["availability"];
+  };
+  candidates: Array<{
+    rank: number;
+    deviceId: string;
+    deviceModel: string;
+    deviceFamily: Device["family"];
+    deviceStatus: Device["status"];
+    endpointId: string;
+    endpointLabel: string;
+    endpointKind: Endpoint["kind"];
+    capabilityId: string;
+    capabilityType: CapabilityType;
+    value: CapabilityState["value"];
+    availability: CapabilityState["availability"];
+    ownershipScore: number;
+  }>;
+  reason?: string;
+}
+
 type PendingDialAdjust = {
   type: "AdjustGain" | "AdjustLevel";
   bindingId: string;
@@ -389,6 +429,97 @@ export class CapabilityCore {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  /**
+   * Explain how a logical binding resolves (or why it does not).
+   * Useful for CLI / PI debugging of ownership and Tier honesty.
+   */
+  diagnoseBinding(bindingId: string): BindingDiagnosis {
+    const surface = this.getControlSurface(bindingId);
+    const binding = this.bindings.get(bindingId);
+    if (!binding) {
+      return {
+        bindingId,
+        status: "missing",
+        surface,
+        candidates: [],
+        reason: `No binding registered: ${bindingId}`,
+      };
+    }
+
+    const owners = this.findCapabilityOwners(binding);
+    const candidates = owners.map((owner, rank) => {
+      const stateKey = this.stateKey(owner.device.id, owner.capability.id);
+      const state =
+        this.states.get(stateKey) ??
+        this.readFreshState(owner.device.id, owner.capability.id) ??
+        this.offlineState(owner.capability.id);
+      return {
+        rank,
+        deviceId: owner.device.id,
+        deviceModel: owner.device.model,
+        deviceFamily: owner.device.family,
+        deviceStatus: owner.device.status,
+        endpointId: owner.endpoint.id,
+        endpointLabel: owner.endpoint.label,
+        endpointKind: owner.endpoint.kind,
+        capabilityId: owner.capability.id,
+        capabilityType: owner.capability.type,
+        value: state.value,
+        availability: state.availability,
+        ownershipScore: this.ownershipScore(owner, binding),
+      };
+    });
+
+    const resolved = this.resolveBinding(bindingId);
+    if (resolved) {
+      const status: BindingDiagnosis["status"] =
+        resolved.device.status === "offline" ||
+        resolved.state.availability === "offline"
+          ? "offline"
+          : "resolved";
+      const diagnosis: BindingDiagnosis = {
+        bindingId,
+        binding: { ...binding },
+        status,
+        surface,
+        owner: {
+          deviceId: resolved.device.id,
+          deviceModel: resolved.device.model,
+          deviceFamily: resolved.device.family,
+          deviceStatus: resolved.device.status,
+          endpointId: resolved.endpoint.id,
+          endpointLabel: resolved.endpoint.label,
+          endpointKind: resolved.endpoint.kind,
+          capabilityId: resolved.capability.id,
+          capabilityType: resolved.capability.type,
+          value: resolved.state.value,
+          availability: resolved.state.availability,
+        },
+        candidates,
+      };
+      if (status === "offline") {
+        diagnosis.reason = `${binding.label} owner is offline`;
+      }
+      return diagnosis;
+    }
+
+    const unresolved = this.diagnoseUnresolved(binding);
+    return {
+      bindingId,
+      binding: { ...binding },
+      status: unresolved,
+      surface,
+      candidates,
+      reason:
+        unresolved === "unsupported"
+          ? `No live device exposes ${binding.capabilityType}` +
+            (binding.sourceHint
+              ? ` matching sourceHint=${binding.sourceHint}`
+              : "")
+          : "No online devices",
     };
   }
 
