@@ -114,10 +114,34 @@ export function recordAddress(): MidiCcAddress {
   };
 }
 
+/**
+ * SMART pad bank select → MIDI channel 1, CC 0.
+ * Official values are 0–7 (banks 1–8). Host sends; the console receives.
+ */
+export function padBankAddress(): MidiCcAddress {
+  return {
+    controller: RODECASTER_DUO_MIDI_MAP.cc.padBank,
+    channel: 1,
+    direction: "send",
+  };
+}
+
+/** Official MIDI bank index (0–7) for a 1-based bank number. */
+export function padBankToMidiValue(bank: number): number {
+  const clamped = Math.min(8, Math.max(1, Math.round(bank)));
+  return clamped - 1;
+}
+
+/** 1-based bank number from an official MIDI value (0–7). */
+export function padBankFromMidiValue(value: number): number {
+  const clamped = Math.min(7, Math.max(0, Math.round(value)));
+  return clamped + 1;
+}
+
 export const RODECASTER_MIDI_SUPPORT = {
   tier: "B" as const,
   label: "Control (official MIDI)",
-  supported: ["Mute", "Listen", "PadTrigger", "Recording"] as const,
+  supported: ["Mute", "Listen", "PadTrigger", "PadBank", "Recording"] as const,
   unsupported: ["Level", "Gain", "Monitoring", "Compression", "NoiseGate", "HighPassFilter"] as const,
   notes: [
     "Uses RØDE's documented MIDI surface for Duo / Pro II.",

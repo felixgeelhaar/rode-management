@@ -10,6 +10,9 @@ import type {
 import {
   listenAddress,
   muteAddress,
+  padBankAddress,
+  padBankFromMidiValue,
+  padBankToMidiValue,
   padTriggerAddress,
   recordAddress,
   RODECASTER_DUO_MIDI_MAP,
@@ -30,11 +33,17 @@ export interface RodecasterDuoMidiOptions {
   model?: RodecasterModel;
   /**
    * Inject a transport. Defaults to {@link MockMidiTransport} so CI/dev work
-   * without hardware. Pass a real MIDI backend for a physical Duo / Pro II.
+   * without hardware. Pass {@link NodeMidiTransport} for a physical Duo / Pro II.
    */
   transport?: MidiTransport;
   /** When using the default mock, echo outbound CCs as inbound. */
   echoMockTraffic?: boolean;
+  /**
+   * RØDE official MIDI uses value `1` as a press/toggle pulse (often followed by `0`).
+   * When true: outbound mute/listen/record send value 1; inbound value 1 toggles;
+   * inbound value 0 is ignored. Default false (absolute) for the mock transport.
+   */
+  pulseToggle?: boolean;
 }
 
 interface StripState {
@@ -58,11 +67,14 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   private readonly serial: string;
   private readonly map: RodecasterMidiMap;
   private readonly transport: MidiTransport;
+  private readonly pulseToggle: boolean;
 
   private started = false;
   private online = false;
   private device: Device | undefined;
   private recording = false;
+  /** 1-based SMART pad bank (official MIDI values are 0–7). */
+  private padBank = 1;
   private readonly strips: StripState[];
   private unsubscribeTransport: (() => void) | undefined;
 
@@ -88,6 +100,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
         "Mock RØDECaster MIDI",
         options.echoMockTraffic ?? true,
       );
+    this.pulseToggle = options.pulseToggle ?? false;
     this.strips = Array.from({ length: this.map.channelCount }, () => ({
       muted: false,
       listening: false,
@@ -199,8 +212,21 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   }
 
   /** Simulate a physical mute press on the console. */
-  simulatePhysicalMute(stripIndex: number, muted: boolean): void {
+  simulatePhysicalMute(stripIndex: number, muted?: boolean): void {
     const address = muteAddress(stripIndex);
+    if (this.pulseToggle) {
+      const message: MidiControlChange = {
+        channel: address.channel,
+        controller: address.controller,
+        value: 1,
+      };
+      if (this.transport instanceof MockMidiTransport) {
+        this.transport.injectIncoming(message);
+        return;
+      }
+      this.handleIncoming(message);
+      return;
+    }
     const message: MidiControlChange = {
       channel: address.channel,
       controller: address.controller,
@@ -214,6 +240,21 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
   }
 
   private write(capabilityId: string, value: number | boolean | string): void {
+    if (capabilityId === "pad-bank") {
+      const bank = typeof value === "number" ? value : Number(value);
+      if (!Number.isFinite(bank)) {
+        throw new Error("Pad bank requires a number 1–8");
+      }
+      this.padBank = Math.min(8, Math.max(1, Math.round(bank)));
+      const address = padBankAddress();
+      this.transport.sendControlChange({
+        channel: address.channel,
+        controller: address.controller,
+        value: padBankToMidiValue(this.padBank),
+      });
+      return;
+    }
+
     if (capabilityId === "recording") {
       if (typeof value !== "boolean") {
         throw new Error("Recording requires a boolean");
@@ -223,7 +264,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       this.transport.sendControlChange({
         channel: address.channel,
         controller: address.controller,
-        value: value ? 1 : 0,
+        value: this.pulseToggle ? 1 : value ? 1 : 0,
       });
       return;
     }
@@ -267,7 +308,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       this.transport.sendControlChange({
         channel: address.channel,
         controller: address.controller,
-        value: value ? 1 : 0,
+        value: this.pulseToggle ? 1 : value ? 1 : 0,
       });
       return;
     }
@@ -277,7 +318,7 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     this.transport.sendControlChange({
       channel: address.channel,
       controller: address.controller,
-      value: value ? 1 : 0,
+      value: this.pulseToggle ? 1 : value ? 1 : 0,
     });
   }
 
@@ -287,6 +328,48 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     }
 
     const { controller, channel, value } = message;
+
+    if (controller === this.map.cc.padBank && channel === 1) {
+      this.padBank = padBankFromMidiValue(value);
+      this.emitState("pad-bank", this.stateFor("pad-bank", "hardware")!);
+      return;
+    }
+
+    if (this.pulseToggle) {
+      if (value === 0) {
+        return;
+      }
+      if (controller === this.map.cc.record && channel === 1) {
+        this.recording = !this.recording;
+        this.emitState("recording", this.stateFor("recording", "hardware")!);
+        return;
+      }
+      if (
+        controller === this.map.cc.mute &&
+        channel >= 1 &&
+        channel <= this.map.channelCount
+      ) {
+        const strip = this.strips[channel - 1];
+        if (!strip) return;
+        strip.muted = !strip.muted;
+        const capabilityId = `ch-${channel}:mute`;
+        this.emitState(capabilityId, this.stateFor(capabilityId, "hardware")!);
+        return;
+      }
+      if (
+        controller === this.map.cc.listen &&
+        channel >= 1 &&
+        channel <= this.map.channelCount
+      ) {
+        const strip = this.strips[channel - 1];
+        if (!strip) return;
+        strip.listening = !strip.listening;
+        const capabilityId = `ch-${channel}:listen`;
+        this.emitState(capabilityId, this.stateFor(capabilityId, "hardware")!);
+      }
+      return;
+    }
+
     const active = value > 0;
 
     if (controller === this.map.cc.record && channel === 1) {
@@ -332,6 +415,16 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       return {
         capabilityId,
         value: this.recording,
+        availability,
+        timestamp,
+        source,
+      };
+    }
+
+    if (capabilityId === "pad-bank") {
+      return {
+        capabilityId,
+        value: this.padBank,
         availability,
         timestamp,
         source,
@@ -412,7 +505,21 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       kind: "mix",
       label: "Transport",
       source: "RØDECaster",
-      capabilities: [booleanCapability("recording", "Recording")],
+      capabilities: [
+        booleanCapability("recording", "Recording"),
+        {
+          id: "pad-bank",
+          type: "PadBank",
+          readable: true,
+          writable: true,
+          observable: true,
+          valueType: "number",
+          minimum: 1,
+          maximum: 8,
+          step: 1,
+          metadata: { supportTier: "midi-tier-b", midiValue: "0-7" },
+        },
+      ],
     });
 
     return {
@@ -431,6 +538,8 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
       metadata: {
         controlTier: RODECASTER_MIDI_SUPPORT.tier,
         controlSurface: "official-midi",
+        midiTransport: this.transport.name,
+        midiPulseToggle: this.pulseToggle,
         supportedCapabilities: [...RODECASTER_MIDI_SUPPORT.supported],
         unsupportedCapabilities: [...RODECASTER_MIDI_SUPPORT.unsupported],
       },
@@ -461,6 +570,8 @@ export class RodecasterDuoMidiAdapter implements DeviceAdapter {
     }
     const recording = this.stateFor("recording", source);
     if (recording) this.emitState("recording", recording);
+    const padBank = this.stateFor("pad-bank", source);
+    if (padBank) this.emitState("pad-bank", padBank);
   }
 
   private emitState(capabilityId: string, state: CapabilityState): void {

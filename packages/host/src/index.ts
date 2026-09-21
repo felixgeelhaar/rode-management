@@ -1,6 +1,7 @@
 export {
   CHAT_LEVEL_BINDING_ID,
   createCapabilityCore,
+  describeMidiRuntime,
   GAME_LEVEL_BINDING_ID,
   GAME_LISTEN_BINDING_ID,
   getCapabilityCore,
@@ -12,7 +13,15 @@ export {
   MIC_MUTE_BINDING_ID,
   MUSIC_LEVEL_BINDING_ID,
   PAD_1_BINDING_ID,
+  PAD_BANK_BINDING_ID,
   RECORD_BINDING_ID,
   resetCapabilityCoreSingleton,
 } from "./bootstrap.js";
-export type { AdapterMode, BootstrapOptions } from "./bootstrap.js";
+export type {
+  AdapterMode,
+  BootstrapOptions,
+  MidiRuntimeInfo,
+} from "./bootstrap.js";
+
+export { listHardwareMidiPorts } from "@rode-control/adapter-rodecaster-duo";
+export { builtInWorkflows } from "./workflows.js";

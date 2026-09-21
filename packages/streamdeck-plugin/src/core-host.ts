@@ -14,5 +14,6 @@ export {
   MIC_MUTE_BINDING_ID,
   MUSIC_LEVEL_BINDING_ID,
   PAD_1_BINDING_ID,
+  PAD_BANK_BINDING_ID,
   RECORD_BINDING_ID,
 } from "@rode-control/host";

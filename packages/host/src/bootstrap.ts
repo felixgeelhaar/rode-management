@@ -4,13 +4,17 @@ import {
   CapabilityCore as Core,
   createBinding,
   createMicGainBinding,
+  parseWorkflowProfiles,
   suggestCreatorBindings,
 } from "@rode-control/core";
 import { PodMicUsbSimAdapter } from "@rode-control/adapter-podmic-usb";
 import {
+  createHardwareMidiTransport,
   RodecasterDuoMidiAdapter,
   RodecasterDuoSimAdapter,
+  type RodecasterModel,
 } from "@rode-control/adapter-rodecaster-duo";
+import { builtInWorkflows } from "./workflows.js";
 
 export const MIC_GAIN_BINDING_ID = "my-mic-gain";
 export const MIC_MONITOR_BINDING_ID = "my-mic-monitor";
@@ -23,6 +27,7 @@ export const HEADPHONES_LEVEL_BINDING_ID = "headphones-level";
 export const MIC_MUTE_BINDING_ID = "mic-mute";
 export const GAME_LISTEN_BINDING_ID = "game-listen";
 export const PAD_1_BINDING_ID = "pad-1";
+export const PAD_BANK_BINDING_ID = "pad-bank";
 export const RECORD_BINDING_ID = "record";
 
 export type AdapterMode =
@@ -38,7 +43,28 @@ export interface BootstrapOptions {
   bindingsReplace?: boolean;
   /** When set, write the binding profile after binding changes (debounced). */
   bindingsAutosavePath?: string;
+  /**
+   * Load workflow JSON (one profile, array, or `{ workflows: [...] }`).
+   * Merged after built-ins so file entries override matching ids.
+   */
+  workflowsPath?: string;
+  /** When set, write the workflow bundle after capture/upsert (debounced). */
+  workflowsAutosavePath?: string;
   dialCoalesceMs?: number;
+  /**
+   * Prefer a MIDI port by name/substring when using hardware MIDI.
+   * Env: `RODE_CONTROL_MIDI_PORT`.
+   */
+  midiPort?: string;
+  /**
+   * Open OS MIDI instead of the mock transport.
+   * Env: `RODE_CONTROL_MIDI_HARDWARE=1`, or implied when `midiPort` / `RODE_CONTROL_MIDI_PORT` is set.
+   */
+  midiHardware?: boolean;
+  /** Open a virtual loopback when no hardware matches. Env: `RODE_CONTROL_MIDI_VIRTUAL=1`. */
+  midiVirtual?: boolean;
+  /** Duo (default) or Pro II channel/pad counts. Env: `RODE_CONTROL_MIDI_MODEL`. */
+  midiModel?: RodecasterModel;
 }
 
 let corePromise: Promise<CapabilityCore> | undefined;
@@ -51,6 +77,9 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   RODE_CONTROL_BINDINGS_PATH
  *   RODE_CONTROL_BINDINGS_REPLACE=1
  *   RODE_CONTROL_BINDINGS_AUTOSAVE
+ *   RODE_CONTROL_MIDI_PORT / RODE_CONTROL_MIDI_HARDWARE / RODE_CONTROL_MIDI_VIRTUAL / RODE_CONTROL_MIDI_MODEL
+ *   RODE_CONTROL_WORKFLOWS_PATH
+ *   RODE_CONTROL_WORKFLOWS_AUTOSAVE
  */
 export async function createCapabilityCore(
   options: BootstrapOptions = {},
@@ -65,6 +94,11 @@ export async function createCapabilityCore(
     process.env.RODE_CONTROL_BINDINGS_REPLACE === "1";
   const autosavePath =
     options.bindingsAutosavePath ?? process.env.RODE_CONTROL_BINDINGS_AUTOSAVE;
+  const workflowsPath =
+    options.workflowsPath ?? process.env.RODE_CONTROL_WORKFLOWS_PATH;
+  const workflowsAutosavePath =
+    options.workflowsAutosavePath ??
+    process.env.RODE_CONTROL_WORKFLOWS_AUTOSAVE;
 
   const core = new Core({
     preferMixerOwnership: true,
@@ -83,7 +117,7 @@ export async function createCapabilityCore(
   } else if (mode === "rodecaster") {
     core.registerAdapter(new RodecasterDuoSimAdapter());
   } else if (mode === "rodecaster-midi") {
-    core.registerAdapter(new RodecasterDuoMidiAdapter());
+    core.registerAdapter(await createRodecasterMidiAdapter(options));
   } else if (mode === "topology") {
     core.registerAdapter(
       new PodMicUsbSimAdapter({
@@ -111,8 +145,23 @@ export async function createCapabilityCore(
     core.importProfile(json, { replace: bindingsReplace });
   }
 
+  for (const workflow of builtInWorkflows()) {
+    core.upsertWorkflow(workflow);
+  }
+
+  if (workflowsPath) {
+    const json = await readFile(workflowsPath, "utf8");
+    for (const workflow of parseWorkflowProfiles(json)) {
+      core.upsertWorkflow(workflow);
+    }
+  }
+
   if (autosavePath) {
     attachAutosave(core, autosavePath, mode);
+  }
+
+  if (workflowsAutosavePath) {
+    attachWorkflowAutosave(core, workflowsAutosavePath);
   }
 
   return core;
@@ -124,10 +173,21 @@ function attachAutosave(
   mode: AdapterMode,
 ): void {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (!dirty) return;
+    dirty = false;
+    await writeFile(path, core.exportProfileJson(mode), "utf8");
+  };
   const schedule = () => {
+    dirty = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      void writeFile(path, core.exportProfileJson(mode), "utf8");
+      void flush();
     }, 250);
   };
   core.subscribe((event) => {
@@ -138,6 +198,42 @@ function attachAutosave(
       schedule();
     }
   });
+  wrapStop(core, flush);
+}
+
+function attachWorkflowAutosave(core: CapabilityCore, path: string): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (!dirty) return;
+    dirty = false;
+    await writeFile(path, core.exportWorkflowsJson(), "utf8");
+  };
+  const schedule = () => {
+    dirty = true;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      void flush();
+    }, 250);
+  };
+  core.subscribe((event) => {
+    if (event.type === "workflow-changed") {
+      schedule();
+    }
+  });
+  wrapStop(core, flush);
+}
+
+function wrapStop(core: CapabilityCore, flush: () => Promise<void>): void {
+  const original = core.stop.bind(core);
+  core.stop = async () => {
+    await flush();
+    await original();
+  };
 }
 
 /** Process-wide singleton used by the Stream Deck plugin. */
@@ -151,6 +247,82 @@ export async function getCapabilityCore(): Promise<CapabilityCore> {
 /** Test helper — drop the singleton between cases. */
 export function resetCapabilityCoreSingleton(): void {
   corePromise = undefined;
+}
+
+async function createRodecasterMidiAdapter(
+  options: BootstrapOptions,
+): Promise<RodecasterDuoMidiAdapter> {
+  const midiPort =
+    options.midiPort ?? process.env.RODE_CONTROL_MIDI_PORT ?? undefined;
+  const midiHardware =
+    options.midiHardware ??
+    (process.env.RODE_CONTROL_MIDI_HARDWARE === "1" || Boolean(midiPort));
+  const midiVirtual =
+    options.midiVirtual ?? process.env.RODE_CONTROL_MIDI_VIRTUAL === "1";
+  const midiModel = resolveMidiModel(
+    options.midiModel ?? process.env.RODE_CONTROL_MIDI_MODEL,
+  );
+
+  if (!midiHardware) {
+    return new RodecasterDuoMidiAdapter({ model: midiModel });
+  }
+
+  const transport = await createHardwareMidiTransport({
+    ...(midiPort !== undefined ? { portName: midiPort } : {}),
+    allowVirtual: midiVirtual,
+  });
+  return new RodecasterDuoMidiAdapter({
+    transport,
+    model: midiModel,
+    // Official RØDE MIDI uses value-1 press pulses (not absolute 0/1).
+    pulseToggle: true,
+  });
+}
+
+function resolveMidiModel(raw: string | RodecasterModel | undefined): RodecasterModel {
+  if (raw === "pro-ii" || raw === "proii" || raw === "pro2") {
+    return "pro-ii";
+  }
+  return "duo";
+}
+
+export interface MidiRuntimeInfo {
+  /** True when hardware (or virtual) MIDI was requested. */
+  requested: boolean;
+  port?: string;
+  virtual: boolean;
+  model: RodecasterModel;
+  /** mock | hardware | virtual — inferred from env before open. */
+  intent: "mock" | "hardware" | "virtual";
+}
+
+/** Inspect MIDI-related env / bootstrap options without opening a port. */
+export function describeMidiRuntime(
+  options: BootstrapOptions = {},
+): MidiRuntimeInfo {
+  const port =
+    options.midiPort ?? process.env.RODE_CONTROL_MIDI_PORT ?? undefined;
+  const hardware =
+    options.midiHardware ??
+    (process.env.RODE_CONTROL_MIDI_HARDWARE === "1" || Boolean(port));
+  const virtual =
+    options.midiVirtual ?? process.env.RODE_CONTROL_MIDI_VIRTUAL === "1";
+  const model = resolveMidiModel(
+    options.midiModel ?? process.env.RODE_CONTROL_MIDI_MODEL,
+  );
+
+  let intent: MidiRuntimeInfo["intent"] = "mock";
+  if (hardware) {
+    intent = virtual ? "virtual" : "hardware";
+  }
+
+  return {
+    requested: hardware,
+    ...(port !== undefined ? { port } : {}),
+    virtual,
+    model,
+    intent,
+  };
 }
 
 function seedTopology(core: CapabilityCore): void {
@@ -262,6 +434,7 @@ function seedRodecasterMidiBindings(core: CapabilityCore): void {
     }),
   );
   core.upsertBinding(createBinding(PAD_1_BINDING_ID, "SMART Pad 1", "PadTrigger"));
+  core.upsertBinding(createBinding(PAD_BANK_BINDING_ID, "PAD BANK", "PadBank"));
   core.upsertBinding(createBinding(RECORD_BINDING_ID, "REC", "Recording"));
 
   core.upsertBinding(

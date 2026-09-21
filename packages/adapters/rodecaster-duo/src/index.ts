@@ -7,11 +7,25 @@ export type { RodecasterDuoMidiOptions } from "./midi-adapter.js";
 export {
   MockMidiTransport,
   UnconfiguredHardwareMidiTransport,
+  createHardwareMidiTransport,
 } from "./midi-transport.js";
 export type {
+  CreateHardwareMidiOptions,
   MidiControlChange,
   MidiTransport,
 } from "./midi-transport.js";
+
+export {
+  NodeMidiTransport,
+  listHardwareMidiPorts,
+} from "./node-midi-transport.js";
+export type { NodeMidiTransportOptions } from "./node-midi-transport.js";
+
+export {
+  decodeControlChange,
+  encodeControlChange,
+  findMidiPortIndex,
+} from "./midi-port.js";
 
 export {
   RODECASTER_DUO_MIDI_MAP,
@@ -22,6 +36,9 @@ export {
   muteAddress,
   padTriggerAddress,
   recordAddress,
+  padBankAddress,
+  padBankFromMidiValue,
+  padBankToMidiValue,
 } from "./midi-map.js";
 export type {
   MidiCcAddress,

@@ -21,6 +21,7 @@
     "demo:bindings": "tsx src/demo-bindings.ts"
   },
   "dependencies": {
+    "@julusian/midi": "^3.8.1",
     "@rode-control/core": "0.1.0"
   },
   "devDependencies": {

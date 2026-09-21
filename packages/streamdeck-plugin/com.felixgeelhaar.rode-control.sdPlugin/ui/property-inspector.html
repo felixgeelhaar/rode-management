@@ -6,72 +6,204 @@
     <style>
       :root {
         color-scheme: dark;
-        font-family: system-ui, sans-serif;
+        --bg: #121418;
+        --panel: #1a1e24;
+        --line: #2c333c;
+        --text: #e8eef2;
+        --muted: #8b97a3;
+        --amber: #f5a623;
+        --teal: #3ddc97;
+        --coral: #ff5c5c;
+        --font-display: "Trebuchet MS", "Segoe UI", sans-serif;
+        --font-body: "Segoe UI", system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
-        margin: 12px;
-        color: #eee;
-        background: #2d2d2d;
+        margin: 0;
+        padding: 12px 14px 16px;
+        color: var(--text);
+        background:
+          radial-gradient(120% 80% at 10% -10%, rgba(245, 166, 35, 0.14), transparent 50%),
+          radial-gradient(100% 70% at 100% 0%, rgba(61, 220, 151, 0.1), transparent 45%),
+          var(--bg);
+        font: 12.5px/1.4 var(--font-body);
+      }
+      .brand {
+        font-family: var(--font-display);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin: 0 0 2px;
+      }
+      .brand span {
+        color: var(--amber);
+      }
+      .sub {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .status {
+        display: grid;
+        gap: 4px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+          var(--panel);
+      }
+      .status strong {
+        font-family: var(--font-display);
         font-size: 13px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .pill.available {
+        color: var(--teal);
+        border-color: rgba(61, 220, 151, 0.45);
+      }
+      .pill.offline {
+        color: var(--coral);
+        border-color: rgba(255, 92, 92, 0.45);
+      }
+      .pill.unsupported {
+        color: var(--amber);
+        border-color: rgba(245, 166, 35, 0.45);
       }
       label {
         display: block;
         margin: 10px 0 4px;
-        opacity: 0.85;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
       }
+      select,
       input {
         width: 100%;
-        box-sizing: border-box;
-        padding: 6px 8px;
-        border: 1px solid #555;
-        border-radius: 4px;
-        background: #1f1f1f;
-        color: #eee;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0f1216;
+        color: var(--text);
+        font: inherit;
+      }
+      select:focus,
+      input:focus {
+        outline: 1px solid rgba(245, 166, 35, 0.55);
+        border-color: rgba(245, 166, 35, 0.55);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: end;
+      }
+      button {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: #232830;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover {
+        border-color: rgba(245, 166, 35, 0.5);
       }
       .hint {
         margin-top: 12px;
-        opacity: 0.65;
-        line-height: 1.35;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .hidden {
+        display: none !important;
       }
       code {
-        font-size: 12px;
+        color: var(--amber);
+        font-size: 11px;
       }
     </style>
   </head>
   <body>
-    <label for="bindingId">Binding ID</label>
-    <input id="bindingId" type="text" placeholder="e.g. game-level" spellcheck="false" />
+    <p class="brand">R<span>Ø</span>DE Control</p>
+    <p class="sub" id="adapterHint">Loading surface…</p>
 
-    <label for="sensitivity">Sensitivity (dial ticks)</label>
-    <input id="sensitivity" type="number" min="0.1" step="0.5" placeholder="1" />
+    <div class="status" id="statusCard">
+      <div>
+        <strong id="statusLabel">—</strong>
+        <span class="pill" id="statusPill">—</span>
+      </div>
+      <div id="statusValue" style="color: var(--muted)">Select a binding or workflow</div>
+    </div>
 
-    <p class="hint">
-      Stable IDs: <code>my-mic-gain</code>, <code>my-mic-monitor</code>,
-      <code>game-level</code>, <code>chat-level</code>, <code>music-level</code>,
-      <code>headphones-level</code>, <code>mic-mute</code>,
-      <code>game-listen</code>, <code>pad-1</code>, <code>record</code>,
-      <code>my-mic-hpf</code>, <code>my-mic-comp</code>.
-      Leave blank to use the action default.
+    <div id="bindingSection">
+      <label for="bindingSelect">Binding</label>
+      <div class="row">
+        <select id="bindingSelect"></select>
+        <button type="button" id="refreshBtn" title="Refresh from core">↻</button>
+      </div>
+      <label for="bindingId">Custom binding ID</label>
+      <input id="bindingId" type="text" placeholder="optional override" spellcheck="false" />
+    </div>
+
+    <div id="workflowSection" class="hidden">
+      <label for="workflowSelect">Workflow</label>
+      <select id="workflowSelect"></select>
+      <label for="workflowId">Custom workflow ID</label>
+      <input id="workflowId" type="text" placeholder="streaming / podcast / custom" spellcheck="false" />
+    </div>
+
+    <div id="sensitivitySection">
+      <label for="sensitivity">Dial sensitivity</label>
+      <input id="sensitivity" type="number" min="0.1" step="0.5" placeholder="1" />
+    </div>
+
+    <p class="hint" id="hint">
+      Live bindings and workflows come from the capability core. Leave custom fields
+      blank to use the selected preset.
     </p>
 
     <script>
       let websocket;
       let uuid;
       let actionInfo;
+      let catalog = { bindings: [], workflows: [], adapterHint: "sim" };
+      let actionUUID = "";
+
+      const WORKFLOW_ACTIONS = new Set([
+        "com.felixgeelhaar.rode-control.apply-workflow",
+        "com.felixgeelhaar.rode-control.capture-workflow",
+      ]);
+      const DIAL_ACTIONS = new Set([
+        "com.felixgeelhaar.rode-control.mic-gain",
+        "com.felixgeelhaar.rode-control.mic-monitor",
+        "com.felixgeelhaar.rode-control.channel-level",
+      ]);
 
       function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
         uuid = inUUID;
         actionInfo = JSON.parse(inActionInfo);
+        actionUUID = actionInfo.action || "";
+        configureSections();
         websocket = new WebSocket("ws://127.0.0.1:" + inPort);
 
         websocket.onopen = function () {
-          websocket.send(
-            JSON.stringify({
-              event: inRegisterEvent,
-              uuid: inUUID,
-            }),
-          );
+          websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
           applySettings(actionInfo.payload && actionInfo.payload.settings);
+          requestCatalog();
         };
 
         websocket.onmessage = function (evt) {
@@ -79,22 +211,147 @@
           if (data.event === "didReceiveSettings") {
             applySettings(data.payload && data.payload.settings);
           }
+          if (data.event === "sendToPropertyInspector") {
+            onCatalog(data.payload);
+          }
         };
+      }
+
+      function configureSections() {
+        const isWorkflow = WORKFLOW_ACTIONS.has(actionUUID);
+        const isDial = DIAL_ACTIONS.has(actionUUID);
+        document.getElementById("bindingSection").classList.toggle("hidden", isWorkflow);
+        document.getElementById("workflowSection").classList.toggle("hidden", !isWorkflow);
+        document.getElementById("sensitivitySection").classList.toggle("hidden", !isDial);
+      }
+
+      function requestCatalog() {
+        if (!websocket || websocket.readyState !== WebSocket.OPEN) return;
+        websocket.send(
+          JSON.stringify({
+            event: "sendToPlugin",
+            action: actionUUID,
+            context: actionInfo.context,
+            payload: { type: "request-catalog" },
+          }),
+        );
+      }
+
+      function onCatalog(payload) {
+        if (!payload || payload.type !== "catalog") return;
+        catalog = payload;
+        document.getElementById("adapterHint").textContent =
+          "Adapter · " + (payload.adapterHint || "sim");
+        fillBindingSelect();
+        fillWorkflowSelect();
+        updateStatusFromSelection();
+      }
+
+      function fillBindingSelect() {
+        const select = document.getElementById("bindingSelect");
+        const current = document.getElementById("bindingId").value.trim();
+        select.innerHTML = "";
+        const blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "Action default";
+        select.appendChild(blank);
+        for (const binding of catalog.bindings || []) {
+          const opt = document.createElement("option");
+          opt.value = binding.id;
+          opt.textContent =
+            binding.label +
+            " · " +
+            binding.capabilityType +
+            " · " +
+            binding.surface.valueText;
+          select.appendChild(opt);
+        }
+        if (current) select.value = current;
+      }
+
+      function fillWorkflowSelect() {
+        const select = document.getElementById("workflowSelect");
+        const current = document.getElementById("workflowId").value.trim();
+        select.innerHTML = "";
+        const blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "Action default";
+        select.appendChild(blank);
+        for (const workflow of catalog.workflows || []) {
+          const opt = document.createElement("option");
+          opt.value = workflow.id;
+          opt.textContent =
+            workflow.label + " · " + workflow.steps + " steps";
+          select.appendChild(opt);
+        }
+        if (current) select.value = current;
+      }
+
+      function updateStatusFromSelection() {
+        const isWorkflow = WORKFLOW_ACTIONS.has(actionUUID);
+        const pill = document.getElementById("statusPill");
+        const label = document.getElementById("statusLabel");
+        const value = document.getElementById("statusValue");
+
+        if (isWorkflow) {
+          const id =
+            document.getElementById("workflowId").value.trim() ||
+            document.getElementById("workflowSelect").value;
+          const workflow = (catalog.workflows || []).find((w) => w.id === id);
+          label.textContent = workflow ? workflow.label : id || "Workflow";
+          value.textContent = workflow
+            ? (workflow.description || workflow.steps + " steps")
+            : "Uses action default until set";
+          pill.textContent = workflow ? "ready" : "default";
+          pill.className = "pill available";
+          return;
+        }
+
+        const id =
+          document.getElementById("bindingId").value.trim() ||
+          document.getElementById("bindingSelect").value;
+        const binding = (catalog.bindings || []).find((b) => b.id === id);
+        if (!binding) {
+          label.textContent = id || "Default binding";
+          value.textContent = "Uses action default until set";
+          pill.textContent = "default";
+          pill.className = "pill";
+          return;
+        }
+        label.textContent = binding.label;
+        value.textContent =
+          binding.capabilityType + " · " + binding.surface.valueText;
+        pill.textContent = binding.surface.availability;
+        pill.className = "pill " + binding.surface.availability;
       }
 
       function applySettings(settings) {
         settings = settings || {};
         document.getElementById("bindingId").value = settings.bindingId || "";
+        document.getElementById("workflowId").value = settings.workflowId || "";
         document.getElementById("sensitivity").value =
           settings.sensitivity != null ? settings.sensitivity : "";
+        if (settings.bindingId) {
+          document.getElementById("bindingSelect").value = settings.bindingId;
+        }
+        if (settings.workflowId) {
+          document.getElementById("workflowSelect").value = settings.workflowId;
+        }
+        updateStatusFromSelection();
       }
 
       function saveSettings() {
         if (!websocket || websocket.readyState !== WebSocket.OPEN) return;
-        const bindingId = document.getElementById("bindingId").value.trim();
-        const sensitivityRaw = document.getElementById("sensitivity").value.trim();
         const settings = {};
+        const bindingId =
+          document.getElementById("bindingId").value.trim() ||
+          document.getElementById("bindingSelect").value.trim();
+        const workflowId =
+          document.getElementById("workflowId").value.trim() ||
+          document.getElementById("workflowSelect").value.trim();
+        const sensitivityRaw = document.getElementById("sensitivity").value.trim();
         if (bindingId) settings.bindingId = bindingId;
+        if (workflowId) settings.workflowId = workflowId;
         if (sensitivityRaw !== "" && !Number.isNaN(Number(sensitivityRaw))) {
           settings.sensitivity = Number(sensitivityRaw);
         }
@@ -105,10 +362,21 @@
             payload: settings,
           }),
         );
+        updateStatusFromSelection();
       }
 
+      document.getElementById("bindingSelect").addEventListener("change", function () {
+        document.getElementById("bindingId").value = this.value;
+        saveSettings();
+      });
+      document.getElementById("workflowSelect").addEventListener("change", function () {
+        document.getElementById("workflowId").value = this.value;
+        saveSettings();
+      });
       document.getElementById("bindingId").addEventListener("change", saveSettings);
+      document.getElementById("workflowId").addEventListener("change", saveSettings);
       document.getElementById("sensitivity").addEventListener("change", saveSettings);
+      document.getElementById("refreshBtn").addEventListener("click", requestCatalog);
 
       window.connectElgatoStreamDeckSocket = connectElgatoStreamDeckSocket;
     </script>

@@ -1,9 +1,12 @@
 import streamDeck from "@elgato/streamdeck";
+import { ApplyWorkflowKeyAction } from "./actions/apply-workflow.js";
+import { CaptureWorkflowKeyAction } from "./actions/capture-workflow.js";
 import { ChannelLevelDialAction } from "./actions/channel-level.js";
 import { ListenToggleKeyAction } from "./actions/listen-toggle.js";
 import { MicGainDialAction } from "./actions/mic-gain.js";
 import { MicMonitorDialAction } from "./actions/mic-monitor.js";
 import { MuteToggleKeyAction } from "./actions/mute-toggle.js";
+import { PadBankKeyAction } from "./actions/pad-bank.js";
 import { PadTriggerKeyAction } from "./actions/pad-trigger.js";
 import {
   CompressorToggleKeyAction,
@@ -20,7 +23,10 @@ streamDeck.actions.registerAction(new ListenToggleKeyAction());
 streamDeck.actions.registerAction(new HpfToggleKeyAction());
 streamDeck.actions.registerAction(new CompressorToggleKeyAction());
 streamDeck.actions.registerAction(new PadTriggerKeyAction());
+streamDeck.actions.registerAction(new PadBankKeyAction());
 streamDeck.actions.registerAction(new RecordToggleKeyAction());
+streamDeck.actions.registerAction(new ApplyWorkflowKeyAction());
+streamDeck.actions.registerAction(new CaptureWorkflowKeyAction());
 
 // Warm the capability core so discovery begins with the plugin.
 void getCapabilityCore().catch((err) => {

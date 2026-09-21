@@ -111,4 +111,77 @@ describe("RodecasterDuoMidiAdapter", () => {
     });
     expect(result.ok).toBe(true);
   });
+
+  it("uses pulseToggle semantics for official RØDE MIDI presses", async () => {
+    const transport = new MockMidiTransport("pulse", false);
+    const adapter = new RodecasterDuoMidiAdapter({
+      transport,
+      pulseToggle: true,
+    });
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding(
+      createBinding("mic-mute", "MIC MUTE", "Mute", { sourceHint: "PodMic" }),
+    );
+
+    await core.execute({
+      type: "SetMute",
+      bindingId: "mic-mute",
+      value: true,
+    });
+    expect(transport.sent.at(-1)).toEqual(
+      expect.objectContaining({ value: 1 }),
+    );
+
+    // Absolute-style value 0 must not unmute in pulse mode.
+    transport.injectIncoming({
+      channel: muteAddress(0).channel,
+      controller: muteAddress(0).controller,
+      value: 0,
+    });
+    expect(core.getControlSurface("mic-mute").valueText).toBe("ON");
+
+    adapter.simulatePhysicalMute(0);
+    expect(core.getControlSurface("mic-mute").valueText).toBe("OFF");
+
+    adapter.simulatePhysicalMute(0);
+    expect(core.getControlSurface("mic-mute").valueText).toBe("ON");
+  });
+
+  it("advertises the active MIDI transport name on the device", async () => {
+    const transport = new MockMidiTransport("bring-up-mock", false);
+    const adapter = new RodecasterDuoMidiAdapter({ transport });
+    await adapter.start();
+    const device = adapter.listDevices()[0];
+    expect(device?.metadata?.midiTransport).toBe("bring-up-mock");
+    expect(device?.metadata?.midiPulseToggle).toBe(false);
+    await adapter.stop();
+  });
+
+  it("selects SMART pad bank over CC 0 (values 0–7) even in pulse mode", async () => {
+    const transport = new MockMidiTransport("bank", false);
+    const adapter = new RodecasterDuoMidiAdapter({
+      transport,
+      pulseToggle: true,
+    });
+    const core = new CapabilityCore();
+    core.registerAdapter(adapter);
+    await core.start();
+    core.upsertBinding(createBinding("pad-bank", "PAD BANK", "PadBank"));
+
+    const set = await core.execute({
+      type: "SetPadBank",
+      bindingId: "pad-bank",
+      value: 3,
+    });
+    expect(set.ok).toBe(true);
+    expect(core.getControlSurface("pad-bank").valueText).toBe("3");
+    expect(transport.sent.at(-1)).toEqual(
+      expect.objectContaining({ channel: 1, controller: 0, value: 2 }),
+    );
+
+    transport.injectIncoming({ channel: 1, controller: 0, value: 0 });
+    expect(core.getControlSurface("pad-bank").valueText).toBe("1");
+  });
 });

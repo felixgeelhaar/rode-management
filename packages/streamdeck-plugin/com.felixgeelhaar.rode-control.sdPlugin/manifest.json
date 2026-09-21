@@ -2,12 +2,12 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "com.felixgeelhaar.rode-control",
   "Name": "R\u00d8DE Control",
-  "Version": "0.6.0.0",
+  "Version": "1.1.0.0",
   "Author": "Felix Geelhaar",
   "Category": "R\u00d8DE Control",
   "CategoryIcon": "imgs/category-icon",
   "Icon": "imgs/plugin-icon",
-  "Description": "Capability-driven Stream Deck+ controls for your R\u00d8DE audio setup. Mic gain/monitor/DSP, mix/headphones levels, mute/listen, SMART pads, and record \u2014 with binding profiles and property inspector.",
+  "Description": "Capability-driven Stream Deck+ controls for R\u00d8DE setups \u2014 dials, keys, workflows, live property inspector.",
   "CodePath": "bin/plugin.js",
   "SDKVersion": 2,
   "Software": {
@@ -41,7 +41,7 @@
         "TriggerDescription": {
           "Rotate": "Adjust gain",
           "Push": "Toggle mute",
-          "Touch": "Show mic controls (future)"
+          "Touch": "Show ownership / focus readout"
         }
       },
       "States": [
@@ -65,8 +65,8 @@
         "layout": "$B1",
         "TriggerDescription": {
           "Rotate": "Adjust monitor level",
-          "Push": "Reserved",
-          "Touch": "Show monitor controls (future)"
+          "Push": "Toggle mic mute",
+          "Touch": "Focus cue readout"
         }
       },
       "States": [
@@ -91,7 +91,7 @@
         "TriggerDescription": {
           "Rotate": "Adjust level",
           "Push": "Toggle mute",
-          "Touch": "Show channel controls (future)"
+          "Touch": "Show channel ownership / focus"
         }
       },
       "States": [
@@ -194,6 +194,24 @@
       "PropertyInspectorPath": "ui/property-inspector.html"
     },
     {
+      "UUID": "com.felixgeelhaar.rode-control.pad-bank",
+      "Name": "Pad Bank",
+      "Icon": "imgs/actions/pad-bank/icon",
+      "Tooltip": "Cycle R\u00d8DECaster SMART pad banks 1\u20138 (official MIDI CC 0)",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/pad-bank/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "BANK"
+        }
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
       "UUID": "com.felixgeelhaar.rode-control.record-toggle",
       "Name": "Record",
       "Icon": "imgs/actions/record-toggle/icon",
@@ -210,6 +228,42 @@
         }
       ],
       "PropertyInspectorPath": "ui/property-inspector.html"
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.apply-workflow",
+      "Name": "Apply Workflow",
+      "Icon": "imgs/actions/apply-workflow/icon",
+      "Tooltip": "Apply a product workflow preset (Streaming / Podcast)",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html",
+      "States": [
+        {
+          "Image": "imgs/actions/apply-workflow/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "STREAM"
+        }
+      ]
+    },
+    {
+      "UUID": "com.felixgeelhaar.rode-control.capture-workflow",
+      "Name": "Capture Workflow",
+      "Icon": "imgs/actions/capture-workflow/icon",
+      "Tooltip": "Snapshot the live mix into a workflow preset id",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/property-inspector.html",
+      "States": [
+        {
+          "Image": "imgs/actions/capture-workflow/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12,
+          "Title": "CAPTURE"
+        }
+      ]
     }
   ]
 }

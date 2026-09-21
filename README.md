@@ -28,6 +28,7 @@ npm run demo:topology
 npm run demo:bindings
 npm run cli -- status
 RODE_CONTROL_ADAPTER=rodecaster npm run cli -- surface headphones-level
+npm run e2e
 npm run build
 ```
 
@@ -67,14 +68,28 @@ Built artifact:
 `packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin`
 
 ```bash
+npm install && npm run build
+npm install -g @elgato/cli
+streamdeck link packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin
+streamdeck restart com.felixgeelhaar.rode-control
+```
+
+Then place **RØDE Control** actions on Stream Deck+. Property Inspector offers live binding/workflow pickers.
+
+```bash
 # PodMic USB simulator (default)
 RODE_CONTROL_ADAPTER=sim
 
 # RØDECaster Duo mix simulator
 RODE_CONTROL_ADAPTER=rodecaster
 
-# Official MIDI Tier B (mock transport until a real port is wired)
+# Official MIDI Tier B (mock transport by default)
 RODE_CONTROL_ADAPTER=rodecaster-midi
+
+# Same mode + real Duo / Pro II MIDI Function port
+RODE_CONTROL_ADAPTER=rodecaster-midi
+RODE_CONTROL_MIDI_HARDWARE=1
+RODE_CONTROL_MIDI_PORT=RØDECaster
 
 # Dual-adapter topology (mixer-preferred Gain)
 RODE_CONTROL_ADAPTER=topology
@@ -82,6 +97,24 @@ RODE_CONTROL_ADAPTER=topology
 # Optional: merge/replace bindings from a JSON profile
 RODE_CONTROL_BINDINGS_PATH=./my-layout.json
 RODE_CONTROL_BINDINGS_REPLACE=1
+
+# Optional: load/override workflow presets from disk
+RODE_CONTROL_WORKFLOWS_PATH=./examples/workflow-streaming.json
+RODE_CONTROL_WORKFLOWS_AUTOSAVE=./my-workflows.json
+```
+
+```bash
+npm run cli -- diagnose my-mic-gain
+RODE_CONTROL_ADAPTER=rodecaster npm run cli -- layout suggest
+RODE_CONTROL_ADAPTER=rodecaster npm run cli -- workflow import ./examples/workflow-streaming.json
+```
+
+MIDI bring-up helpers:
+
+```bash
+npm run cli -- midi ports
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- status
+RODE_CONTROL_ADAPTER=rodecaster-midi npm run cli -- diagnose mic-mute
 ```
 
 Key actions (Mute / Listen / SMART Pad / Record / HPF / COMP) work in the appropriate modes. Channel Level dials show `N/A` on Tier B MIDI. Use the property inspector to point a Channel Level instance at `chat-level`, `music-level`, or `headphones-level`.
