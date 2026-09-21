@@ -99,11 +99,48 @@ describe("createCapabilityCore", () => {
       capabilityType: "Mute",
       sourceHint: "PodMic",
     });
-    await new Promise((r) => setTimeout(r, 350));
+    await core.stop();
     const saved = JSON.parse(await readFile(path, "utf8")) as {
       bindings: Array<{ id: string }>;
     };
     expect(saved.bindings.some((b) => b.id === "extra-mute")).toBe(true);
+  });
+
+  it("loads workflow overrides from disk after built-ins", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "rode-workflows-"));
+    const path = join(dir, "workflows.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        id: "streaming",
+        label: "Streaming Custom",
+        steps: [{ bindingId: "my-mic-gain", value: 55 }],
+      }),
+    );
+
+    const core = await createCapabilityCore({
+      mode: "rodecaster",
+      workflowsPath: path,
+    });
+    expect(core.getWorkflow("streaming")?.label).toBe("Streaming Custom");
+    expect(core.getWorkflow("podcast")?.id).toBe("podcast");
     await core.stop();
+  });
+
+  it("autosaves workflow bundle after capture", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "rode-wf-auto-"));
+    const path = join(dir, "workflows.json");
+    const core = await createCapabilityCore({
+      mode: "rodecaster",
+      workflowsAutosavePath: path,
+    });
+    core.captureWorkflow("custom", "Custom");
+    await core.stop();
+    const saved = JSON.parse(await readFile(path, "utf8")) as {
+      workflows: Array<{ id: string }>;
+    };
+    expect(saved.workflows.some((w) => w.id === "custom")).toBe(true);
+    expect(saved.workflows.some((w) => w.id === "streaming")).toBe(true);
   });
 });

@@ -23,3 +23,4 @@ export type {
 } from "./bootstrap.js";
 
 export { listHardwareMidiPorts } from "@rode-control/adapter-rodecaster-duo";
+export { builtInWorkflows } from "./workflows.js";

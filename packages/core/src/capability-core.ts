@@ -19,6 +19,11 @@ import type {
   ResolvedCapability,
   Topology,
 } from "./types.js";
+import {
+  captureWorkflowFromBindings,
+  serializeWorkflowBundle,
+  type WorkflowProfile,
+} from "./workflow.js";
 
 export interface CapabilityCoreOptions {
   /** When true, missing devices keep bindings configured but mark them offline. */
@@ -35,6 +40,7 @@ export interface CapabilityCoreOptions {
   dialCoalesceMs?: number;
 }
 
+/** Snapshot explaining binding resolution for CLI / property-inspector debugging. */
 export interface BindingDiagnosis {
   bindingId: string;
   binding?: LogicalBinding;
@@ -100,6 +106,7 @@ export class CapabilityCore {
   private readonly options: Required<CapabilityCoreOptions>;
   private topology: Topology = { edges: [] };
   private readonly pendingDialAdjusts = new Map<string, PendingDialAdjust>();
+  private readonly workflows = new Map<string, WorkflowProfile>();
 
   constructor(options: CapabilityCoreOptions = {}) {
     this.options = {
@@ -217,6 +224,101 @@ export class CapabilityCore {
     }
   }
 
+  upsertWorkflow(workflow: WorkflowProfile): void {
+    this.workflows.set(workflow.id, {
+      ...workflow,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    });
+    this.emit({ type: "workflow-changed", workflowId: workflow.id });
+  }
+
+  getWorkflow(workflowId: string): WorkflowProfile | undefined {
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) return undefined;
+    return {
+      ...workflow,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    };
+  }
+
+  listWorkflows(): WorkflowProfile[] {
+    return [...this.workflows.values()].map((workflow) => ({
+      ...workflow,
+      steps: workflow.steps.map((step) => ({ ...step })),
+    }));
+  }
+
+  /** Serialize all registered workflows as a versioned bundle. */
+  exportWorkflowsJson(): string {
+    return serializeWorkflowBundle(this.listWorkflows());
+  }
+
+  /** Snapshot current binding values into a workflow preset. */
+  captureWorkflow(
+    id: string,
+    label: string,
+    description?: string,
+  ): WorkflowProfile {
+    const workflow = captureWorkflowFromBindings(
+      id,
+      label,
+      this.listBindings(),
+      (bindingId) => this.resolveBinding(bindingId)?.state.value ?? null,
+      description,
+    );
+    this.upsertWorkflow(workflow);
+    return workflow;
+  }
+
+  async applyWorkflow(workflowId: string): Promise<{
+    ok: boolean;
+    workflowId: string;
+    results: CommandResult[];
+  }> {
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) {
+      const error = `Unknown workflow: ${workflowId}`;
+      this.emit({ type: "command-failed", bindingId: workflowId, error });
+      return { ok: false, workflowId, results: [{ ok: false, error }] };
+    }
+
+    const results: CommandResult[] = [];
+    for (const step of workflow.steps) {
+      const binding = this.getBinding(step.bindingId);
+      if (!binding) {
+        results.push({
+          ok: false,
+          error: `Binding unavailable: ${step.bindingId}`,
+        });
+        continue;
+      }
+      const command = this.absoluteCommandForBinding(
+        binding,
+        step.value,
+      );
+      if (!command) {
+        results.push({
+          ok: false,
+          error: `Cannot apply absolute value to ${binding.capabilityType}`,
+        });
+        continue;
+      }
+      results.push(await this.execute(command));
+    }
+
+    const failed = results.filter((r) => !r.ok).length;
+    const applied = results.length - failed;
+    const ok = failed === 0 && applied > 0;
+    this.emit({
+      type: "workflow-applied",
+      workflowId,
+      ok,
+      applied,
+      failed,
+    });
+    return { ok, workflowId, results };
+  }
+
   listDevices(): Device[] {
     return [...this.devices.values()];
   }
@@ -257,7 +359,128 @@ export class CapabilityCore {
     return { ...match, binding, state };
   }
 
+  /**
+   * Explain how a logical binding resolves (or why it does not).
+   * Useful for CLI / PI debugging of ownership and Tier honesty.
+   */
+  diagnoseBinding(bindingId: string): BindingDiagnosis {
+    const surface = this.getControlSurface(bindingId);
+    const binding = this.bindings.get(bindingId);
+    if (!binding) {
+      return {
+        bindingId,
+        status: "missing",
+        surface,
+        candidates: [],
+        reason: `No binding registered: ${bindingId}`,
+      };
+    }
+
+    const owners = this.findCapabilityOwners(binding);
+    const candidates = owners.map((owner, rank) => {
+      const stateKey = this.stateKey(owner.device.id, owner.capability.id);
+      const state =
+        this.states.get(stateKey) ??
+        this.readFreshState(owner.device.id, owner.capability.id) ??
+        this.offlineState(owner.capability.id);
+      return {
+        rank,
+        deviceId: owner.device.id,
+        deviceModel: owner.device.model,
+        deviceFamily: owner.device.family,
+        deviceStatus: owner.device.status,
+        endpointId: owner.endpoint.id,
+        endpointLabel: owner.endpoint.label,
+        endpointKind: owner.endpoint.kind,
+        capabilityId: owner.capability.id,
+        capabilityType: owner.capability.type,
+        value: state.value,
+        availability: state.availability,
+        ownershipScore: this.ownershipScore(owner, binding),
+      };
+    });
+
+    const resolved = this.resolveBinding(bindingId);
+    if (resolved) {
+      const status: BindingDiagnosis["status"] =
+        resolved.device.status === "offline" ||
+        resolved.state.availability === "offline"
+          ? "offline"
+          : "resolved";
+      const diagnosis: BindingDiagnosis = {
+        bindingId,
+        binding: { ...binding },
+        status,
+        surface,
+        owner: {
+          deviceId: resolved.device.id,
+          deviceModel: resolved.device.model,
+          deviceFamily: resolved.device.family,
+          deviceStatus: resolved.device.status,
+          endpointId: resolved.endpoint.id,
+          endpointLabel: resolved.endpoint.label,
+          endpointKind: resolved.endpoint.kind,
+          capabilityId: resolved.capability.id,
+          capabilityType: resolved.capability.type,
+          value: resolved.state.value,
+          availability: resolved.state.availability,
+        },
+        candidates,
+      };
+      if (status === "offline") {
+        diagnosis.reason = `${binding.label} owner is offline`;
+      }
+      return diagnosis;
+    }
+
+    const unresolved = this.diagnoseUnresolved(binding);
+    return {
+      bindingId,
+      binding: { ...binding },
+      status: unresolved,
+      surface,
+      candidates,
+      reason:
+        unresolved === "unsupported"
+          ? `No live device exposes ${binding.capabilityType}` +
+            (binding.sourceHint ? ` matching sourceHint=${binding.sourceHint}` : "")
+          : "No online devices",
+    };
+  }
+
   async execute(command: ControlCommand): Promise<CommandResult> {
+    if (command.type === "ApplyWorkflow") {
+      const outcome = await this.applyWorkflow(command.workflowId);
+      if (outcome.ok) {
+        return { ok: true };
+      }
+      return {
+        ok: false,
+        error: `Workflow ${command.workflowId} applied with failures`,
+      };
+    }
+
+    if (command.type === "ApplyPreset") {
+      // Prefer product workflows when the preset id matches a registered workflow.
+      if (this.workflows.has(command.presetId)) {
+        const outcome = await this.applyWorkflow(command.presetId);
+        if (outcome.ok) {
+          return { ok: true };
+        }
+        return {
+          ok: false,
+          error: `Workflow ${command.presetId} applied with failures`,
+        };
+      }
+      const error = `Unknown device/product preset: ${command.presetId}`;
+      this.emit({
+        type: "command-failed",
+        bindingId: command.bindingId,
+        error,
+      });
+      return { ok: false, error };
+    }
+
     if (
       (command.type === "AdjustGain" || command.type === "AdjustLevel") &&
       this.options.dialCoalesceMs > 0
@@ -274,6 +497,48 @@ export class CapabilityCore {
     }
 
     return this.executeImmediate(command);
+  }
+
+  private absoluteCommandForBinding(
+    binding: LogicalBinding,
+    value: number | boolean | string,
+  ): ControlCommand | undefined {
+    switch (binding.capabilityType) {
+      case "Gain":
+        return typeof value === "number"
+          ? { type: "SetGain", bindingId: binding.id, value }
+          : undefined;
+      case "Level":
+      case "Monitoring":
+        return typeof value === "number"
+          ? { type: "SetLevel", bindingId: binding.id, value }
+          : undefined;
+      case "Mute":
+        return typeof value === "boolean"
+          ? { type: "SetMute", bindingId: binding.id, value }
+          : undefined;
+      case "Listen":
+        return typeof value === "boolean"
+          ? {
+              type: "SetProcessing",
+              bindingId: binding.id,
+              capabilityType: "Listen",
+              value,
+            }
+          : undefined;
+      case "HighPassFilter":
+      case "Compression":
+      case "NoiseGate":
+      case "Recording":
+        return {
+          type: "SetProcessing",
+          bindingId: binding.id,
+          capabilityType: binding.capabilityType,
+          value,
+        };
+      default:
+        return undefined;
+    }
   }
 
   private enqueueDialAdjust(
@@ -335,7 +600,9 @@ export class CapabilityCore {
     await Promise.all(keys.map((key) => this.flushDialAdjust(key)));
   }
 
-  private async executeImmediate(command: ControlCommand): Promise<CommandResult> {
+  private async executeImmediate(
+    command: Exclude<ControlCommand, { type: "ApplyWorkflow" }>,
+  ): Promise<CommandResult> {
     const bindingId = command.bindingId;
     const base = this.resolveBinding(bindingId);
 
@@ -429,97 +696,6 @@ export class CapabilityCore {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
-    };
-  }
-
-  /**
-   * Explain how a logical binding resolves (or why it does not).
-   * Useful for CLI / PI debugging of ownership and Tier honesty.
-   */
-  diagnoseBinding(bindingId: string): BindingDiagnosis {
-    const surface = this.getControlSurface(bindingId);
-    const binding = this.bindings.get(bindingId);
-    if (!binding) {
-      return {
-        bindingId,
-        status: "missing",
-        surface,
-        candidates: [],
-        reason: `No binding registered: ${bindingId}`,
-      };
-    }
-
-    const owners = this.findCapabilityOwners(binding);
-    const candidates = owners.map((owner, rank) => {
-      const stateKey = this.stateKey(owner.device.id, owner.capability.id);
-      const state =
-        this.states.get(stateKey) ??
-        this.readFreshState(owner.device.id, owner.capability.id) ??
-        this.offlineState(owner.capability.id);
-      return {
-        rank,
-        deviceId: owner.device.id,
-        deviceModel: owner.device.model,
-        deviceFamily: owner.device.family,
-        deviceStatus: owner.device.status,
-        endpointId: owner.endpoint.id,
-        endpointLabel: owner.endpoint.label,
-        endpointKind: owner.endpoint.kind,
-        capabilityId: owner.capability.id,
-        capabilityType: owner.capability.type,
-        value: state.value,
-        availability: state.availability,
-        ownershipScore: this.ownershipScore(owner, binding),
-      };
-    });
-
-    const resolved = this.resolveBinding(bindingId);
-    if (resolved) {
-      const status: BindingDiagnosis["status"] =
-        resolved.device.status === "offline" ||
-        resolved.state.availability === "offline"
-          ? "offline"
-          : "resolved";
-      const diagnosis: BindingDiagnosis = {
-        bindingId,
-        binding: { ...binding },
-        status,
-        surface,
-        owner: {
-          deviceId: resolved.device.id,
-          deviceModel: resolved.device.model,
-          deviceFamily: resolved.device.family,
-          deviceStatus: resolved.device.status,
-          endpointId: resolved.endpoint.id,
-          endpointLabel: resolved.endpoint.label,
-          endpointKind: resolved.endpoint.kind,
-          capabilityId: resolved.capability.id,
-          capabilityType: resolved.capability.type,
-          value: resolved.state.value,
-          availability: resolved.state.availability,
-        },
-        candidates,
-      };
-      if (status === "offline") {
-        diagnosis.reason = `${binding.label} owner is offline`;
-      }
-      return diagnosis;
-    }
-
-    const unresolved = this.diagnoseUnresolved(binding);
-    return {
-      bindingId,
-      binding: { ...binding },
-      status: unresolved,
-      surface,
-      candidates,
-      reason:
-        unresolved === "unsupported"
-          ? `No live device exposes ${binding.capabilityType}` +
-            (binding.sourceHint
-              ? ` matching sourceHint=${binding.sourceHint}`
-              : "")
-          : "No online devices",
     };
   }
 

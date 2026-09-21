@@ -7,13 +7,21 @@
  *   npm run cli -- surface my-mic-gain
  *   npm run cli -- diagnose mic-mute
  *   npm run cli -- midi ports
+ *   npm run cli -- layout suggest
+ *   npm run cli -- workflow import ./examples/workflow-streaming.json
  *   RODE_CONTROL_ADAPTER=rodecaster npm run cli -- exec AdjustLevel game-level --delta 2
  *   npm run cli -- export ./layout.json
  *   npm run cli -- import ./layout.json --replace
+ *   npm run cli -- workflow import ./examples/workflow-streaming.json
  */
 
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import type { ControlCommand } from "@rode-control/core";
+import {
+  parseWorkflowProfiles,
+  serializeWorkflowProfile,
+  suggestCreatorBindings,
+} from "@rode-control/core";
 import {
   createCapabilityCore,
   describeMidiRuntime,
@@ -28,7 +36,14 @@ function usage(): never {
   rode-control surface [bindingId]
   rode-control diagnose [bindingId]
   rode-control midi ports
+  rode-control layout suggest
   rode-control exec <CommandType> <bindingId> [--delta N] [--value V]
+  rode-control workflow list
+  rode-control workflow apply <id>
+  rode-control workflow capture <id> [label]
+  rode-control workflow export <id> [path]
+  rode-control workflow export-all [path]
+  rode-control workflow import <path>
   rode-control export [path]
   rode-control import <path> [--replace]
 
@@ -37,6 +52,8 @@ Env:
   RODE_CONTROL_BINDINGS_PATH=./layout.json
   RODE_CONTROL_MIDI_HARDWARE=1  RODE_CONTROL_MIDI_PORT=<name>
   RODE_CONTROL_MIDI_MODEL=duo|pro-ii  RODE_CONTROL_MIDI_VIRTUAL=1
+  RODE_CONTROL_WORKFLOWS_PATH=./workflows.json
+  RODE_CONTROL_WORKFLOWS_AUTOSAVE=./workflows.json
 `);
   process.exit(1);
 }
@@ -128,6 +145,7 @@ async function main(): Promise<void> {
             connection: d.connection,
           })),
           bindings: core.listBindings().length,
+          workflows: core.listWorkflows().map((w) => w.id),
         });
         break;
       }
@@ -164,6 +182,17 @@ async function main(): Promise<void> {
         }
         break;
       }
+      case "layout": {
+        const sub = argv[1];
+        if (sub !== "suggest") usage();
+        const suggestions = suggestCreatorBindings(core.listDevices());
+        for (const suggestion of suggestions) {
+          console.log(
+            `${suggestion.bank}\t${suggestion.role}\t${suggestion.binding.id}\t${suggestion.binding.label}\t${suggestion.binding.capabilityType}`,
+          );
+        }
+        break;
+      }
       case "exec": {
         const type = argv[1];
         const bindingId = argv[2];
@@ -177,6 +206,71 @@ async function main(): Promise<void> {
           console.log("surface", core.getControlSurface(bindingId));
         }
         process.exitCode = result.ok ? 0 : 1;
+        break;
+      }
+      case "workflow": {
+        const sub = argv[1];
+        if (sub === "list") {
+          for (const workflow of core.listWorkflows()) {
+            console.log(
+              `${workflow.id}\t${workflow.label}\t${workflow.steps.length} steps` +
+                (workflow.description ? `\t${workflow.description}` : ""),
+            );
+          }
+          break;
+        }
+        if (sub === "apply") {
+          const id = argv[2];
+          if (!id) usage();
+          const outcome = await core.applyWorkflow(id);
+          console.log(outcome);
+          process.exitCode = outcome.ok ? 0 : 1;
+          break;
+        }
+        if (sub === "capture") {
+          const id = argv[2];
+          if (!id) usage();
+          const label = argv[3] ?? id;
+          const workflow = core.captureWorkflow(id, label);
+          console.log(workflow);
+          break;
+        }
+        if (sub === "export") {
+          const id = argv[2];
+          if (!id) usage();
+          const workflow = core.getWorkflow(id);
+          if (!workflow) {
+            console.error(`Unknown workflow: ${id}`);
+            process.exitCode = 1;
+            break;
+          }
+          const path = argv[3] ?? `${id}.workflow.json`;
+          await writeFile(path, serializeWorkflowProfile(workflow), "utf8");
+          console.log(`Wrote ${path}`);
+          break;
+        }
+        if (sub === "export-all") {
+          const path = argv[2] ?? "rode-workflows.json";
+          await writeFile(path, core.exportWorkflowsJson(), "utf8");
+          console.log(
+            `Wrote ${path} (${core.listWorkflows().length} workflows)`,
+          );
+          break;
+        }
+        if (sub === "import") {
+          const path = argv[2];
+          if (!path) usage();
+          const json = await readFile(path, "utf8");
+          const workflows = parseWorkflowProfiles(json);
+          for (const workflow of workflows) {
+            core.upsertWorkflow(workflow);
+            console.log(
+              `Loaded ${workflow.id}\t${workflow.label}\t${workflow.steps.length} steps`,
+            );
+          }
+          break;
+        }
+        usage();
         break;
       }
       case "export": {
@@ -263,6 +357,10 @@ function buildCommand(
         capabilityType: "HighPassFilter",
         value: value === "true" || value === "1",
       };
+    case "ApplyWorkflow":
+      return { type, workflowId: bindingId };
+    case "ApplyPreset":
+      return { type, bindingId, presetId: value ?? bindingId };
     default:
       throw new Error(`Unsupported command type: ${type}`);
   }

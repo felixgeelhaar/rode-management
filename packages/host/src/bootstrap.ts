@@ -4,6 +4,7 @@ import {
   CapabilityCore as Core,
   createBinding,
   createMicGainBinding,
+  parseWorkflowProfiles,
   suggestCreatorBindings,
 } from "@rode-control/core";
 import { PodMicUsbSimAdapter } from "@rode-control/adapter-podmic-usb";
@@ -13,6 +14,7 @@ import {
   RodecasterDuoSimAdapter,
   type RodecasterModel,
 } from "@rode-control/adapter-rodecaster-duo";
+import { builtInWorkflows } from "./workflows.js";
 
 export const MIC_GAIN_BINDING_ID = "my-mic-gain";
 export const MIC_MONITOR_BINDING_ID = "my-mic-monitor";
@@ -40,6 +42,13 @@ export interface BootstrapOptions {
   bindingsReplace?: boolean;
   /** When set, write the binding profile after binding changes (debounced). */
   bindingsAutosavePath?: string;
+  /**
+   * Load workflow JSON (one profile, array, or `{ workflows: [...] }`).
+   * Merged after built-ins so file entries override matching ids.
+   */
+  workflowsPath?: string;
+  /** When set, write the workflow bundle after capture/upsert (debounced). */
+  workflowsAutosavePath?: string;
   dialCoalesceMs?: number;
   /**
    * Prefer a MIDI port by name/substring when using hardware MIDI.
@@ -68,6 +77,8 @@ let corePromise: Promise<CapabilityCore> | undefined;
  *   RODE_CONTROL_BINDINGS_REPLACE=1
  *   RODE_CONTROL_BINDINGS_AUTOSAVE
  *   RODE_CONTROL_MIDI_PORT / RODE_CONTROL_MIDI_HARDWARE / RODE_CONTROL_MIDI_VIRTUAL / RODE_CONTROL_MIDI_MODEL
+ *   RODE_CONTROL_WORKFLOWS_PATH
+ *   RODE_CONTROL_WORKFLOWS_AUTOSAVE
  */
 export async function createCapabilityCore(
   options: BootstrapOptions = {},
@@ -82,6 +93,11 @@ export async function createCapabilityCore(
     process.env.RODE_CONTROL_BINDINGS_REPLACE === "1";
   const autosavePath =
     options.bindingsAutosavePath ?? process.env.RODE_CONTROL_BINDINGS_AUTOSAVE;
+  const workflowsPath =
+    options.workflowsPath ?? process.env.RODE_CONTROL_WORKFLOWS_PATH;
+  const workflowsAutosavePath =
+    options.workflowsAutosavePath ??
+    process.env.RODE_CONTROL_WORKFLOWS_AUTOSAVE;
 
   const core = new Core({
     preferMixerOwnership: true,
@@ -128,8 +144,23 @@ export async function createCapabilityCore(
     core.importProfile(json, { replace: bindingsReplace });
   }
 
+  for (const workflow of builtInWorkflows()) {
+    core.upsertWorkflow(workflow);
+  }
+
+  if (workflowsPath) {
+    const json = await readFile(workflowsPath, "utf8");
+    for (const workflow of parseWorkflowProfiles(json)) {
+      core.upsertWorkflow(workflow);
+    }
+  }
+
   if (autosavePath) {
     attachAutosave(core, autosavePath, mode);
+  }
+
+  if (workflowsAutosavePath) {
+    attachWorkflowAutosave(core, workflowsAutosavePath);
   }
 
   return core;
@@ -141,10 +172,21 @@ function attachAutosave(
   mode: AdapterMode,
 ): void {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (!dirty) return;
+    dirty = false;
+    await writeFile(path, core.exportProfileJson(mode), "utf8");
+  };
   const schedule = () => {
+    dirty = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      void writeFile(path, core.exportProfileJson(mode), "utf8");
+      void flush();
     }, 250);
   };
   core.subscribe((event) => {
@@ -155,6 +197,42 @@ function attachAutosave(
       schedule();
     }
   });
+  wrapStop(core, flush);
+}
+
+function attachWorkflowAutosave(core: CapabilityCore, path: string): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (!dirty) return;
+    dirty = false;
+    await writeFile(path, core.exportWorkflowsJson(), "utf8");
+  };
+  const schedule = () => {
+    dirty = true;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      void flush();
+    }, 250);
+  };
+  core.subscribe((event) => {
+    if (event.type === "workflow-changed") {
+      schedule();
+    }
+  });
+  wrapStop(core, flush);
+}
+
+function wrapStop(core: CapabilityCore, flush: () => Promise<void>): void {
+  const original = core.stop.bind(core);
+  core.stop = async () => {
+    await flush();
+    await original();
+  };
 }
 
 /** Process-wide singleton used by the Stream Deck plugin. */

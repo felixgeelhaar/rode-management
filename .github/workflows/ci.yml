@@ -19,6 +19,7 @@ jobs:
       # typecheck builds workspace deps first (packages resolve via dist/)
       - run: npm run typecheck
       - run: npm test
+      - run: npm run e2e
       - run: npm run build
       - run: npm run demo:vertical-slice
       - run: npm run demo:mix-bank
@@ -28,3 +29,5 @@ jobs:
       - run: npm run cli -- status
       - run: RODE_CONTROL_ADAPTER=rodecaster npm run cli -- surface headphones-level
       - run: RODE_CONTROL_ADAPTER=rodecaster npm run cli -- exec AdjustLevel headphones-level --delta 5
+      - run: RODE_CONTROL_ADAPTER=rodecaster npm run cli -- workflow list
+      - run: RODE_CONTROL_ADAPTER=rodecaster npm run cli -- workflow apply streaming
