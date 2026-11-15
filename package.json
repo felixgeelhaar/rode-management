@@ -25,5 +25,10 @@
   "engines": {
     "node": ">=20"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "@elgato/utils": {
+      "zod": "^4.6.6"
+    }
+  }
 }
