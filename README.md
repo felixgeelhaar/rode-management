@@ -1,5 +1,7 @@
 # rode-management
 
+[![nox security grade](.github/nox-badge.svg)](https://github.com/felixgeelhaar/rode-management/security)
+
 Local, capability-driven control layer for RØDE audio ecosystems — initially presented through Elgato Stream Deck+.
 
 > **Positioning:** Control your RØDE setup from Stream Deck.  
