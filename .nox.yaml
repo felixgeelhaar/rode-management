@@ -1,0 +1,14 @@
+# nox configuration. Only generated artifacts are excluded; first-party source is scanned.
+scan:
+  exclude:
+    # esbuild bundle of the Stream Deck plugin (gitignored build output); the
+    # bundled third-party code re-trips the crypto/slopsquat heuristics.
+    - packages/streamdeck-plugin/com.felixgeelhaar.rode-control.sdPlugin/bin/
+    # npm lockfile: integrity hashes look like secrets to the entropy detector;
+    # dependency CVEs are reported via VULN-001 instead.
+    - "**/package-lock.json"
+    # nox's own state and prose.
+    - .nox/
+    - README.md
+    - "*.md"
+    - "**/*.md"
