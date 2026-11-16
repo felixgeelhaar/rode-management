@@ -7,6 +7,7 @@ import {
 import { PodMicUsbSimAdapter } from "./sim-adapter.js";
 import {
   PODMIC_USB_PROTOCOL_CHECKLIST,
+  PODMIC_USB_PROTOCOL_NOTES,
   PODMIC_USB_USB_IDS,
 } from "./protocol-research.js";
 
@@ -105,7 +106,10 @@ describe("PodMicUsbSimAdapter", () => {
 
   it("documents unvalidated protocol checklist", () => {
     expect(PODMIC_USB_USB_IDS.vendorId).toBe(0x19f7);
+    expect(PODMIC_USB_USB_IDS.productId).toBe(0x004a);
     expect(PODMIC_USB_PROTOCOL_CHECKLIST.readGain).toBe("unvalidated");
     expect(PODMIC_USB_PROTOCOL_CHECKLIST.writeGain).toBe("unvalidated");
+    expect(PODMIC_USB_PROTOCOL_NOTES.nearestLiveHardwarePath).toMatch(/MIDI/);
+    expect(PODMIC_USB_PROTOCOL_NOTES.researchBets.length).toBeGreaterThan(0);
   });
 });

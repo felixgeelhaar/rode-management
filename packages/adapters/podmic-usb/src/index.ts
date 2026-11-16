@@ -4,6 +4,7 @@ export {
   PODMIC_USB_PROTOCOL_CHECKLIST,
   PODMIC_USB_PROTOCOL_NOTES,
   PODMIC_USB_USB_IDS,
+  RODE_RELATED_USB_IDS,
 } from "./protocol-research.js";
 export type {
   PodMicUsbProtocolAdapterNotes,
