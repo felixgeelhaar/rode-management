@@ -1,48 +1,63 @@
 import {
   action,
+  DidReceiveSettingsEvent,
   KeyDownEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
+import { BindingFeedbackSession } from "../binding-feedback.js";
 import { getCapabilityCore, MIC_MUTE_BINDING_ID } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type MuteSettings = {
   bindingId?: string;
 };
 
-/**
- * Key action: toggle mute on a logical binding (Tier B MIDI or any Mute capability).
- */
-@action({ UUID: "com.felixgeelhaar.rode-control.mute-toggle" })
+@action({ UUID: ACTION_UUIDS.muteToggle })
 export class MuteToggleKeyAction extends SingletonAction<MuteSettings> {
-  private readonly feedbackUnsubscribers = new Map<string, () => void>();
+  private readonly feedback = new BindingFeedbackSession();
 
   override async onWillAppear(ev: WillAppearEvent<MuteSettings>): Promise<void> {
     const bindingId = ev.payload.settings.bindingId ?? MIC_MUTE_BINDING_ID;
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-
-    const core = await getCapabilityCore();
-    const unsubscribe = core.subscribe((event) => {
-      if (
-        (event.type === "state-changed" &&
-          event.resolved.binding.id === bindingId) ||
-        (event.type === "binding-offline" && event.bindingId === bindingId) ||
-        (event.type === "binding-online" && event.bindingId === bindingId)
-      ) {
-        void this.render(ev.action, bindingId);
-      }
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
+      render: (action, id) => this.render(action, id),
     });
+  }
 
-    this.feedbackUnsubscribers.set(ev.action.id, unsubscribe);
-    await this.render(ev.action, bindingId);
+  override async onDidReceiveSettings(
+    ev: DidReceiveSettingsEvent<MuteSettings>,
+  ): Promise<void> {
+    await this.feedback.onDidReceiveSettings(ev, {
+      defaultBindingId: MIC_MUTE_BINDING_ID,
+      render: (action, id) => this.render(action, id),
+    });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<MuteSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.muteToggle);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.muteToggle);
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<MuteSettings>,
   ): Promise<void> {
-    this.feedbackUnsubscribers.get(ev.action.id)?.();
-    this.feedbackUnsubscribers.delete(ev.action.id);
+    this.feedback.onWillDisappear(ev);
   }
 
   override async onKeyDown(ev: KeyDownEvent<MuteSettings>): Promise<void> {

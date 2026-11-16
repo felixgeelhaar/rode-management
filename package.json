@@ -20,7 +20,8 @@
     "demo:midi": "npm run demo:midi -w @rode-control/adapter-rodecaster-duo",
     "demo:topology": "npm run demo:topology -w @rode-control/adapter-rodecaster-duo",
     "demo:bindings": "npm run demo:bindings -w @rode-control/adapter-rodecaster-duo",
-    "cli": "npm run start -w @rode-control/cli --"
+    "cli": "npm run start -w @rode-control/cli --",
+    "e2e": "npm run build -w @rode-control/core && npm run build -w @rode-control/adapter-podmic-usb && npm run build -w @rode-control/adapter-rodecaster-duo && npm run build -w @rode-control/host && node scripts/e2e-verify.mjs"
   },
   "engines": {
     "node": ">=20"

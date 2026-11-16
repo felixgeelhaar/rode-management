@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "podcast",
+  "label": "Podcast",
+  "description": "Voice-forward mix; game ducked",
+  "steps": [
+    { "bindingId": "my-mic-gain", "value": 52 },
+    { "bindingId": "game-level", "value": -40 },
+    { "bindingId": "chat-level", "value": -10 },
+    { "bindingId": "music-level", "value": -24 },
+    { "bindingId": "headphones-level", "value": 65 }
+  ]
+}

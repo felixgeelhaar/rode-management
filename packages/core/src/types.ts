@@ -137,6 +137,7 @@ export type ControlCommand =
   | { type: "SetProcessing"; bindingId: string; capabilityType: CapabilityType; value: number | boolean | string }
   | { type: "ToggleProcessing"; bindingId: string; capabilityType: CapabilityType }
   | { type: "ApplyPreset"; bindingId: string; presetId: string }
+  | { type: "ApplyWorkflow"; workflowId: string }
   | { type: "TriggerPad"; bindingId: string }
   | { type: "StartRecording"; bindingId: string }
   | { type: "StopRecording"; bindingId: string };
@@ -163,6 +164,14 @@ export type CoreEvent =
   | { type: "state-changed"; resolved: ResolvedCapability }
   | { type: "binding-offline"; bindingId: string; reason: string }
   | { type: "binding-online"; bindingId: string; resolved: ResolvedCapability }
-  | { type: "command-failed"; bindingId: string; error: string };
+  | { type: "command-failed"; bindingId: string; error: string }
+  | {
+      type: "workflow-applied";
+      workflowId: string;
+      ok: boolean;
+      applied: number;
+      failed: number;
+    }
+  | { type: "workflow-changed"; workflowId: string };
 
 export type CoreEventListener = (event: CoreEvent) => void;

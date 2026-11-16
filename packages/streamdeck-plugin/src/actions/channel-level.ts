@@ -3,10 +3,15 @@ import {
   DialDownEvent,
   DialRotateEvent,
   DidReceiveSettingsEvent,
+  PropertyInspectorDidAppearEvent,
+  SendToPluginEvent,
   SingletonAction,
+  TouchTapEvent,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
+import type { JsonObject, JsonValue } from "@elgato/utils";
+import { ACTION_UUIDS } from "../action-uuids.js";
 import { BindingFeedbackSession } from "../binding-feedback.js";
 import {
   CHAT_LEVEL_BINDING_ID,
@@ -15,13 +20,17 @@ import {
   HEADPHONES_LEVEL_BINDING_ID,
   MUSIC_LEVEL_BINDING_ID,
 } from "../core-host.js";
+import {
+  handlePropertyInspectorDidAppear,
+  handleSendToPlugin,
+} from "../pi-bridge.js";
 
 type LevelSettings = {
   bindingId?: string;
   sensitivity?: number;
 };
 
-@action({ UUID: "com.felixgeelhaar.rode-control.channel-level" })
+@action({ UUID: ACTION_UUIDS.channelLevel })
 export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
   private readonly feedback = new BindingFeedbackSession();
 
@@ -39,17 +48,35 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
   override async onDidReceiveSettings(
     ev: DidReceiveSettingsEvent<LevelSettings>,
   ): Promise<void> {
-    await this.feedback.onDidReceiveSettings(ev, {
-      defaultBindingId: GAME_LEVEL_BINDING_ID,
+    const bindingId = this.resolveBindingId(ev.payload.settings);
+    await this.feedback.attach({
+      actionId: ev.action.id,
+      bindingId,
+      action: ev.action,
       includeMuteSibling: true,
       render: (action, id) => this.render(action, id),
     });
+  }
+
+  override async onPropertyInspectorDidAppear(
+    ev: PropertyInspectorDidAppearEvent<LevelSettings>,
+  ): Promise<void> {
+    await handlePropertyInspectorDidAppear(ev, ACTION_UUIDS.channelLevel);
+  }
+
+  override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, JsonObject>): Promise<void> {
+    await handleSendToPlugin(ev.payload, ACTION_UUIDS.channelLevel);
   }
 
   override async onWillDisappear(
     ev: WillDisappearEvent<LevelSettings>,
   ): Promise<void> {
     this.feedback.onWillDisappear(ev);
+  }
+
+  override async onTouchTap(ev: TouchTapEvent<LevelSettings>): Promise<void> {
+    const bindingId = this.resolveBindingId(ev.payload.settings);
+    await this.render(ev.action, bindingId, true);
   }
 
   override async onDialRotate(ev: DialRotateEvent<LevelSettings>): Promise<void> {
@@ -105,6 +132,7 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
   private async render(
     actionRef: WillAppearEvent<LevelSettings>["action"],
     bindingId: string,
+    focused = false,
   ): Promise<void> {
     if (!actionRef.isDial()) return;
     const core = await getCapabilityCore();
@@ -117,6 +145,9 @@ export class ChannelLevelDialAction extends SingletonAction<LevelSettings> {
       value = "N/A";
     } else if (muted) {
       value = `MUTE ${surface.valueText}`;
+    } else if (focused) {
+      const diagnosis = core.diagnoseBinding(bindingId);
+      value = `${surface.valueText} · ${diagnosis.owner?.endpointLabel ?? diagnosis.status}`;
     }
     await actionRef.setFeedback({ title: surface.label, value });
   }

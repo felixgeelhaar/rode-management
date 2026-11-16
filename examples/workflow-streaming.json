@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "streaming",
+  "label": "Streaming",
+  "description": "Balanced mix for live streaming",
+  "steps": [
+    { "bindingId": "my-mic-gain", "value": 48 },
+    { "bindingId": "game-level", "value": -8 },
+    { "bindingId": "chat-level", "value": -12 },
+    { "bindingId": "music-level", "value": -18 },
+    { "bindingId": "headphones-level", "value": 70 }
+  ]
+}
